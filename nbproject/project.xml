@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://www.netbeans.org/ns/project/1">
+    <type>org.netbeans.modules.java.j2seproject</type>
+    <configuration>
+        <data xmlns="http://www.netbeans.org/ns/j2se-project/3">
+            <name>ChatApp-TCP</name>
+            <source-roots>
+                <root id="src.dir"/>
+            </source-roots>
+            <test-roots/>
+        </data>
+        <run-configurations xmlns="http://www.netbeans.org/ns/j2se-run-configurations/1">
+            <!-- Cấu hình chạy SERVER -->
+            <config name="Server">
+                <main-class>server.Server</main-class>
+                <application-args/>
+                <jvm-args>-Dfile.encoding=UTF-8</jvm-args>
+            </config>
+            <!-- Cấu hình chạy CLIENT -->
+            <config name="Client">
+                <main-class>client.controller.ChatController</main-class>
+                <application-args/>
+                <jvm-args>-Dfile.encoding=UTF-8</jvm-args>
+            </config>
+        </run-configurations>
+    </configuration>
+</project>

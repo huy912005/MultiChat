@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Dự án Chat App TCP/IP - Môn Lập Trình Mạng -->
+<!-- Cách chạy trong NetBeans:
+     1. Chạy Server: Run > Run Configurations > Server  (hoặc chuột phải server.Server → Run File)
+     2. Chạy Client: Click nút Run (F6) hoặc Run > Run Configurations > Client 
+     3. Mở nhiều cửa sổ Client để test nhiều người
+-->
+<project name="ChatApp-TCP" default="default" basedir=".">
+    <description>Builds, tests, and runs the project ChatApp-TCP.</description>
+    <import file="nbproject/build-impl.xml"/>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TARGET: run-server
+         Chạy Server riêng biệt (ngoài Run Configuration mặc định)
+         Cách dùng: chuột phải build.xml → Run Target → run-server
+    ══════════════════════════════════════════════════════════ -->
+    <target name="run-server" depends="compile"
+            description="Khởi động Chat Server (port 5000)">
+        <java classname="server.Server"
+              classpath="${run.classpath}"
+              fork="true"
+              failonerror="true">
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+            <jvmarg value="-Dconsole.encoding=UTF-8"/>
+        </java>
+    </target>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TARGET: run-client
+         Chạy Client (giống nhấn F6 nhưng dùng được trong Ant)
+    ══════════════════════════════════════════════════════════ -->
+    <target name="run-client" depends="compile"
+            description="Khởi động Chat Client">
+        <java classname="client.controller.ChatController"
+              classpath="${run.classpath}"
+              fork="true"
+              failonerror="true">
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+        </java>
+    </target>
+
+</project>

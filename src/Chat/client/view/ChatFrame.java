@@ -1,0 +1,1140 @@
+package Chat.client.view;
+
+import Chat.server.model.Message;
+import javax.swing.*;
+import javax.swing.border.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ChatFrame extends JFrame {
+    public static class AuthRequest {
+        private final String username;
+        private final String password;
+        private final boolean registerMode;
+
+        public AuthRequest(String username, String password, boolean registerMode) {
+            this.username = username;
+            this.password = password;
+            this.registerMode = registerMode;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public boolean isRegisterMode() {
+            return registerMode;
+        }
+    }
+
+
+    // ===== MÀU SẮC THEME =====
+    private static final Color COLOR_BG_MAIN = new Color(0xF0F2F5); // Nền chính (xám nhạt)
+    private static final Color COLOR_BG_SIDEBAR = new Color(0xFFFFFF); // Nền sidebar (trắng)
+    private static final Color COLOR_BG_CHAT = new Color(0xF0F2F5); // Nền khu chat
+    private static final Color COLOR_BG_HEADER = new Color(0x0A66C2); // Header (xanh đậm)
+    private static final Color COLOR_BG_INPUT = new Color(0xFFFFFF); // Nền input
+    private static final Color COLOR_BUBBLE_MINE = new Color(0x0084FF); // Bubble tin nhắn của mình (xanh)
+    private static final Color COLOR_BUBBLE_OTHER = new Color(0xE4E6EB); // Bubble tin nhắn người khác (xám)
+    private static final Color COLOR_TEXT_WHITE = new Color(0xFFFFFF); // Chữ trắng
+    private static final Color COLOR_TEXT_DARK = new Color(0x1C1E21); // Chữ đậm
+    private static final Color COLOR_TEXT_GRAY = new Color(0x65676B); // Chữ xám
+    private static final Color COLOR_TEXT_MINE = new Color(0xFFFFFF); // Chữ trong bubble của mình
+    private static final Color COLOR_ONLINE_DOT = new Color(0x44B700); // Chấm online (xanh lá)
+    private static final Color COLOR_ACCENT = new Color(0x0084FF); // Màu nhấn
+    private static final Color COLOR_SEND_BTN = new Color(0x0084FF); // Nút gửi
+    private static final Color COLOR_SEND_HOVER = new Color(0x0066CC); // Nút gửi khi hover
+    private static final Color COLOR_SIDEBAR_DIVIDER = new Color(0xE4E6EB); // Đường chia sidebar
+    private static final Color COLOR_SYSTEM_MSG = new Color(0x888888); // Màu tin nhắn hệ thống
+
+    // ===== FONT =====
+    private static final Font FONT_HEADER_TITLE = new Font("Segoe UI", Font.BOLD, 16);
+    private static final Font FONT_HEADER_SUB = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final Font FONT_SIDEBAR_TITLE = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font FONT_USERNAME = new Font("Segoe UI", Font.BOLD, 12);
+    private static final Font FONT_MESSAGE = new Font("Dialog", Font.PLAIN, 14);
+    private static final Font FONT_TIMESTAMP = new Font("Segoe UI", Font.PLAIN, 10);
+    private static final Font FONT_INPUT = new Font("Dialog", Font.PLAIN, 14);
+    private static final Font FONT_SEND_BTN = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font FONT_EMOJI_BTN = new Font("Dialog", Font.PLAIN, 18);
+    private static final Font FONT_AVATAR = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font FONT_ONLINE_COUNT = new Font("Segoe UI", Font.BOLD, 12);
+
+    // ===== COMPONENTS =====
+    private JPanel chatPanel; // Panel chứa tất cả bubble tin nhắn
+    private JScrollPane chatScroll; // Scroll pane cho chat
+    private PlaceholderTextField inputField; // Ô nhập tin nhắn
+    private JButton sendButton; // Nút gửi
+    private JButton emojiButton; // Nút mở danh sách icon
+    private JPanel userListPanel; // Panel danh sách người dùng
+    private JPanel roomListPanel; // Panel danh sách phòng (MỚI)
+    private JLabel onlineCountLabel; // Label số người online
+    private JLabel headerStatusLabel; // Label trạng thái ở header
+    private JLabel headerRoomLabel;   // Label tên phòng ở header (MỚI)
+    private int currentRoomId = 1;    // Phòng đang chat (MỚI)
+    private List<String[]> cachedRooms = new ArrayList<>(); // Cache để redraw highlight ngay khi đổi phòng
+
+    // ===== LISTENER =====
+    // Interface để ChatFrame thông báo cho Controller khi user gửi tin hoặc kết nối
+    public interface ChatFrameListener {
+        void onSendMessage(String text);
+        void onConnect(String username);
+        void onDisconnect();
+        void onJoinRoom(int roomId); // Khi người dùng chọn phòng
+    }
+
+    private ChatFrameListener frameListener;
+    private String currentUsername;
+
+    public ChatFrame() {
+        initUI();
+    }
+
+    /**
+     * Khởi tạo toàn bộ giao diện
+     */
+    private void initUI() {
+        // Cài đặt Look and Feel
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            // Dùng mặc định nếu không được
+        }
+
+        // Cài đặt JFrame
+        setTitle("💬 Chat App - Lập Trình Mạng");
+        setSize(900, 650);
+        setMinimumSize(new Dimension(700, 500));
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);// căn giữa
+
+        // Xử lý khi đóng cửa sổ
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (frameListener != null) {
+                    frameListener.onDisconnect();
+                }
+            }
+        });
+
+        // Layout chính
+        setLayout(new BorderLayout());
+        getContentPane().setBackground(COLOR_BG_MAIN);
+
+        // Tạo các panel
+        add(createHeader(), BorderLayout.NORTH);
+        add(createSidebar(), BorderLayout.WEST);
+        add(createChatArea(), BorderLayout.CENTER);
+
+        setVisible(true);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HEADER
+    // ─────────────────────────────────────────────────────────────
+    private JPanel createHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(COLOR_BG_HEADER);
+        header.setPreferredSize(new Dimension(0, 60));
+        header.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        leftPanel.setOpaque(false);
+
+        JLabel iconLabel = new JLabel("💬");
+        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 24));
+
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1));
+        titlePanel.setOpaque(false);
+
+        // Đặt thành field để cập nhật khi vào phòng
+        headerRoomLabel = new JLabel("Sảnh Chung");
+        headerRoomLabel.setFont(FONT_HEADER_TITLE);
+        headerRoomLabel.setForeground(COLOR_TEXT_WHITE);
+
+        headerStatusLabel = new JLabel("● Đang kết nối...");
+        headerStatusLabel.setFont(FONT_HEADER_SUB);
+        headerStatusLabel.setForeground(new Color(0xBBDEFB));
+
+        titlePanel.add(headerRoomLabel);
+        titlePanel.add(headerStatusLabel);
+
+        leftPanel.add(iconLabel);
+        leftPanel.add(titlePanel);
+
+        header.add(leftPanel, BorderLayout.WEST);
+        return header;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SIDEBAR - Danh sách người dùng
+    // ─────────────────────────────────────────────────────────────
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel(new BorderLayout());
+        sidebar.setBackground(COLOR_BG_SIDEBAR);
+        sidebar.setPreferredSize(new Dimension(230, 0));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, COLOR_SIDEBAR_DIVIDER));
+
+        // Chia đôi sidebar: trên = danh sách phòng, dưới = thành viên
+        JSplitPane split = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                createRoomListSection(),
+                createMembersSection());
+        split.setDividerLocation(240);
+        split.setDividerSize(3);
+        split.setBorder(null);
+        split.setResizeWeight(0.4);
+
+        sidebar.add(split, BorderLayout.CENTER);
+        return sidebar;
+    }
+
+    /** Panel danh sách phòng (phần trên sidebar) */
+    private JPanel createRoomListSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(COLOR_BG_SIDEBAR);
+
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 10));
+        header.setBackground(COLOR_BG_SIDEBAR);
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_SIDEBAR_DIVIDER));
+        JLabel title = new JLabel("🚪  Phòng Chat");
+        title.setFont(FONT_SIDEBAR_TITLE);
+        title.setForeground(COLOR_TEXT_DARK);
+        header.add(title);
+
+        roomListPanel = new JPanel();
+        roomListPanel.setLayout(new BoxLayout(roomListPanel, BoxLayout.Y_AXIS));
+        roomListPanel.setBackground(COLOR_BG_SIDEBAR);
+
+        JScrollPane scroll = new JScrollPane(roomListPanel);
+        scroll.setBorder(null);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        panel.add(header, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /** Panel danh sách thành viên (phần dưới sidebar) */
+    private JPanel createMembersSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(COLOR_BG_SIDEBAR);
+
+        JPanel sidebarHeader = new JPanel(new BorderLayout());
+        sidebarHeader.setBackground(COLOR_BG_SIDEBAR);
+        sidebarHeader.setBorder(BorderFactory.createEmptyBorder(14, 16, 10, 16));
+
+        JLabel membersLabel = new JLabel("Thành viên");
+        membersLabel.setFont(FONT_SIDEBAR_TITLE);
+        membersLabel.setForeground(COLOR_TEXT_DARK);
+
+        onlineCountLabel = new JLabel("Đang online: 0");
+        onlineCountLabel.setFont(FONT_ONLINE_COUNT);
+        onlineCountLabel.setForeground(COLOR_ACCENT);
+
+        sidebarHeader.add(membersLabel,    BorderLayout.NORTH);
+        sidebarHeader.add(onlineCountLabel, BorderLayout.SOUTH);
+
+        userListPanel = new JPanel();
+        userListPanel.setLayout(new BoxLayout(userListPanel, BoxLayout.Y_AXIS));
+        userListPanel.setBackground(COLOR_BG_SIDEBAR);
+        userListPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 0));
+
+        JScrollPane userScroll = new JScrollPane(userListPanel);
+        userScroll.setBorder(null);
+        userScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        userScroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        panel.add(sidebarHeader, BorderLayout.NORTH);
+        panel.add(userScroll,    BorderLayout.CENTER);
+        return panel;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // CHAT AREA - Khu vực hiển thị tin nhắn + Input
+    // ─────────────────────────────────────────────────────────────
+
+    private JPanel createChatArea() {
+        JPanel chatArea = new JPanel(new BorderLayout());
+        chatArea.setBackground(COLOR_BG_CHAT);
+
+        // Panel tin nhắn (scroll)
+        chatPanel = new JPanel();
+        chatPanel.setLayout(new BoxLayout(chatPanel, BoxLayout.Y_AXIS));
+        chatPanel.setBackground(COLOR_BG_CHAT);
+        chatPanel.setBorder(BorderFactory.createEmptyBorder(16, 16, 8, 16));
+
+        chatScroll = new JScrollPane(chatPanel);
+        chatScroll.setBorder(null);
+        chatScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        chatScroll.getVerticalScrollBar().setUnitIncrement(20);
+        chatScroll.setBackground(COLOR_BG_CHAT);
+        chatScroll.getViewport().setBackground(COLOR_BG_CHAT);
+
+        // Input area
+        JPanel inputArea = createInputArea();
+
+        chatArea.add(chatScroll, BorderLayout.CENTER);
+        chatArea.add(inputArea, BorderLayout.SOUTH);
+
+        return chatArea;
+    }
+
+    private JPanel createInputArea() {
+        JPanel inputWrapper = new JPanel(new BorderLayout());
+        inputWrapper.setBackground(COLOR_BG_INPUT);
+        inputWrapper.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, COLOR_SIDEBAR_DIVIDER));
+
+        JPanel inputPanel = new JPanel(new BorderLayout(8, 0));
+        inputPanel.setBackground(COLOR_BG_INPUT);
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+
+        // Ô nhập tin nhắn (có placeholder)
+        inputField = new PlaceholderTextField();
+        inputField.setFont(FONT_INPUT);
+        inputField.setForeground(COLOR_TEXT_DARK);
+        inputField.setBackground(new Color(0xF0F2F5));
+        inputField.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(22, new Color(0xE4E6EB)),
+                BorderFactory.createEmptyBorder(10, 16, 10, 16)));
+        inputField.setPlaceholder("Nhập tin nhắn...");
+
+        // Gửi bằng phím Enter
+        inputField.addActionListener(e -> sendMessage());
+
+        // Gợi ý placeholder
+        inputField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                inputField.setBackground(Color.WHITE);
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                inputField.setBackground(new Color(0xF0F2F5));
+            }
+        });
+
+        // Nút gửi với hiệu ứng hover
+        sendButton = createSendButton();
+        emojiButton = createEmojiButton();
+
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actionPanel.setOpaque(false);
+        actionPanel.add(emojiButton);
+        actionPanel.add(sendButton);
+
+        inputPanel.add(inputField, BorderLayout.CENTER);
+        inputPanel.add(actionPanel, BorderLayout.EAST);
+
+        inputWrapper.add(inputPanel);
+        return inputWrapper;
+    }
+
+    private JButton createEmojiButton() {
+        JButton btn = new JButton("😀");
+        btn.setFont(FONT_EMOJI_BTN);
+        btn.setPreferredSize(new Dimension(42, 40));
+        btn.setBorder(BorderFactory.createLineBorder(new Color(0xDADDE1)));
+        btn.setBackground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(e -> showEmojiPopup(btn));
+        return btn;
+    }
+
+    private void showEmojiPopup(Component anchor) {
+        // Dùng các ký tự icon tương thích tốt hơn với Swing/Windows để tránh ô vuông
+        final String[] emojis = {
+                "☺", "☻", "❤", "❣", "✌",
+                "👍", "👏", "🙏", "✓", "✍",
+                "★", "☆", "☀", "☕", "♫",
+                "⚡", "☘", "❄", "☂", "⚽"
+        };
+
+        JPopupMenu popup = new JPopupMenu();
+        JPanel panel = new JPanel(new GridLayout(4, 5, 6, 6));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        panel.setBackground(Color.WHITE);
+
+        for (String emoji : emojis) {
+            JButton emojiItem = new JButton(emoji);
+            emojiItem.setFont(FONT_EMOJI_BTN);
+            emojiItem.setMargin(new Insets(4, 4, 4, 4));
+            emojiItem.setFocusPainted(false);
+            emojiItem.setBackground(Color.WHITE);
+            emojiItem.setBorder(BorderFactory.createLineBorder(new Color(0xECEFF1)));
+            emojiItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            emojiItem.addActionListener(e -> {
+                int pos = inputField.getCaretPosition();
+                String old = inputField.getText();
+                String next = old.substring(0, pos) + emoji + old.substring(pos);
+                inputField.setText(next);
+                inputField.requestFocus();
+                inputField.setCaretPosition(pos + emoji.length());
+                popup.setVisible(false);
+            });
+            panel.add(emojiItem);
+        }
+
+        popup.add(panel);
+        popup.show(anchor, 0, -210);
+    }
+
+    private JButton createSendButton() {
+        JButton btn = new JButton("Gửi ->") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                Color bgColor = getModel().isRollover() ? COLOR_SEND_HOVER : COLOR_SEND_BTN;
+                if (getModel().isPressed()) {
+                    bgColor = new Color(0x004999);
+                }
+
+                g2.setColor(bgColor);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 22, 22);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+
+        btn.setFont(FONT_SEND_BTN);
+        btn.setForeground(Color.WHITE);
+        btn.setPreferredSize(new Dimension(90, 40));
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Hiệu ứng hover
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                btn.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                btn.repaint();
+            }
+        });
+
+        btn.addActionListener(e -> sendMessage());
+        return btn;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HIỂN THỊ TIN NHẮN BUBBLE
+    // ─────────────────────────────────────────────────────────────
+
+    // Chiều rộng tối đa của bubble tính bằng pixel (không kể padding)
+    private static final int MAX_BUBBLE_WIDTH = 260;
+
+    /**
+     * Thêm tin nhắn chat dưới dạng bubble
+     */
+    public void addChatMessage(String sender, String content, String timestamp, boolean isMyMessage) {
+        SwingUtilities.invokeLater(() -> {
+            JPanel msgRow = new JPanel();
+            msgRow.setLayout(new BoxLayout(msgRow, BoxLayout.X_AXIS));
+            msgRow.setOpaque(false);
+            msgRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+            msgRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+
+            if (isMyMessage) {
+                msgRow.add(Box.createHorizontalGlue());
+                msgRow.add(createMyBubble(content, timestamp));
+            } else {
+                msgRow.add(createAvatar(sender));
+                msgRow.add(Box.createHorizontalStrut(8));
+                msgRow.add(createOtherBubble(sender, content, timestamp));
+                msgRow.add(Box.createHorizontalGlue());
+            }
+
+            chatPanel.add(msgRow);
+            chatPanel.add(Box.createVerticalStrut(2));
+            chatPanel.revalidate();
+            scrollToBottom();
+        });
+    }
+
+    /**
+     * Tạo JTextArea trong suốt dùng làm nội dung bubble.
+     * JTextArea hỗ trợ xuống dòng tự nhiên và tính height chính xác sau wrap.
+     */
+    private JTextArea makeContentArea(String content, Color fg) {
+        JTextArea area = new JTextArea(content);
+        area.setFont(FONT_MESSAGE);
+        area.setForeground(fg);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setOpaque(false);
+        area.setBorder(null);
+        area.setCursor(Cursor.getDefaultCursor());
+        return area;
+    }
+
+    /**
+     * Đo kích thước chính xác mà bubble cần:
+     * 1. Tắt lineWrap → đo chiều rộng tự nhiên (1 dòng thẳng, không wrap)
+     * 2. Nếu vượt MAX_BUBBLE_WIDTH → cap lại 260px
+     * 3. Bật wrap lại → đo chiều cao tại chiều rộng đã cap để lấy số dòng đúng
+     *
+     * Lý do PHẢI tắt wrap trước khi đo width:
+     * JTextArea với lineWrap=true báo preferredWidth = chiều rộng component
+     * hiện tại (KHÔNG phải chiều rộng tự nhiên của text) → đo sẽ sai.
+     */
+    private static Dimension measureTextSize(JTextArea area) {
+        // Bước 1: Tắt wrap → preferredWidth = độ rộng thực của text (1 dòng)
+        area.setLineWrap(false);
+        area.setSize(new Dimension(10000, 10000));
+        int naturalW = area.getPreferredSize().width;
+
+        // Bước 2: Giới hạn tối đa MAX_BUBBLE_WIDTH
+        int textW = Math.min(naturalW, MAX_BUBBLE_WIDTH);
+
+        // Bước 3: Bật wrap lại → đo chiều cao chính xác tại textW
+        area.setLineWrap(true);
+        area.setSize(new Dimension(textW, 10000));
+        int textH = area.getPreferredSize().height;
+
+        return new Dimension(textW, textH);
+    }
+
+    /**
+     * Cố định kích thước bubble = kích thước text + padding cứng (14px mỗi bên
+     * ngang, 10px mỗi bên dọc)
+     */
+    private static void lockBubbleSize(JPanel bubble, JTextArea area) {
+        Dimension text = measureTextSize(area);
+        // Đặt lại preferred size của area để BorderLayout không co giãn sai
+        area.setPreferredSize(text);
+        area.setMinimumSize(text);
+        area.setMaximumSize(text);
+        // Bubble = text + padding (EmptyBorder: top=10 left=14 bot=10 right=14)
+        Dimension bubbleSize = new Dimension(text.width + 28, text.height + 20);
+        bubble.setPreferredSize(bubbleSize);
+        bubble.setMinimumSize(bubbleSize);
+        bubble.setMaximumSize(bubbleSize);
+    }
+
+    /** Bubble của MÌNH (xanh, căn phải) */
+    private JPanel createMyBubble(String content, String timestamp) {
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+        wrapper.setOpaque(false);
+
+        JTextArea area = makeContentArea(content, COLOR_TEXT_MINE);
+
+        JPanel bubble = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(COLOR_BUBBLE_MINE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        bubble.setLayout(new BorderLayout());
+        bubble.setOpaque(false);
+        bubble.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        bubble.add(area, BorderLayout.CENTER);
+        bubble.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        lockBubbleSize(bubble, area);
+
+        JLabel timeLabel = new JLabel(timestamp);
+        timeLabel.setFont(FONT_TIMESTAMP);
+        timeLabel.setForeground(COLOR_TEXT_GRAY);
+        timeLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        timeLabel.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 4));
+
+        wrapper.add(bubble);
+        wrapper.add(timeLabel);
+        return wrapper;
+    }
+
+    /** Bubble của NGƯỜI KHÁC (xám, căn trái) */
+    private JPanel createOtherBubble(String sender, String content, String timestamp) {
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+        wrapper.setOpaque(false);
+
+        JLabel senderLabel = new JLabel(sender);
+        senderLabel.setFont(FONT_USERNAME);
+        senderLabel.setForeground(COLOR_ACCENT);
+        senderLabel.setBorder(BorderFactory.createEmptyBorder(0, 4, 2, 0));
+        senderLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JTextArea area = makeContentArea(content, COLOR_TEXT_DARK);
+
+        JPanel bubble = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(COLOR_BUBBLE_OTHER);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        bubble.setLayout(new BorderLayout());
+        bubble.setOpaque(false);
+        bubble.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+        bubble.add(area, BorderLayout.CENTER);
+        bubble.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lockBubbleSize(bubble, area);
+
+        JLabel timeLabel = new JLabel(timestamp);
+        timeLabel.setFont(FONT_TIMESTAMP);
+        timeLabel.setForeground(COLOR_TEXT_GRAY);
+        timeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        timeLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 0, 0));
+
+        wrapper.add(senderLabel);
+        wrapper.add(bubble);
+        wrapper.add(timeLabel);
+        return wrapper;
+    }
+
+    /**
+     * Tạo avatar chữ cái đầu của người gửi
+     */
+    private JPanel createAvatar(String name) {
+        JPanel avatar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Màu avatar dựa trên hash của tên
+                Color[] colors = {
+                        new Color(0xFF6B6B), new Color(0x4ECDC4), new Color(0x45B7D1),
+                        new Color(0x96CEB4), new Color(0xFECA57), new Color(0xA29BFE),
+                        new Color(0xFD79A8), new Color(0x00B894), new Color(0xE17055)
+                };
+                int colorIdx = Math.abs(name.hashCode()) % colors.length;
+
+                g2.setColor(colors[colorIdx]);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+
+                // Chữ cái đầu
+                g2.setColor(Color.WHITE);
+                g2.setFont(FONT_AVATAR);
+                String letter = name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase();
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(letter)) / 2;
+                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(letter, x, y);
+                g2.dispose();
+            }
+        };
+        avatar.setOpaque(false);
+        avatar.setPreferredSize(new Dimension(36, 36));
+        avatar.setMinimumSize(new Dimension(36, 36));
+        avatar.setMaximumSize(new Dimension(36, 36));
+        avatar.setAlignmentY(Component.TOP_ALIGNMENT);
+        return avatar;
+    }
+
+    /**
+     * Thêm tin nhắn hệ thống (join/leave/thông báo)
+     */
+    public void addSystemMessage(String content) {
+        SwingUtilities.invokeLater(() -> {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            row.setOpaque(false);
+            row.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+
+            JLabel label = new JLabel(content) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(new Color(0xE4E6EB));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
+            label.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+            label.setForeground(COLOR_SYSTEM_MSG);
+            label.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
+            label.setOpaque(false);
+
+            row.add(label);
+            chatPanel.add(row);
+            chatPanel.add(Box.createVerticalStrut(4));
+            chatPanel.revalidate();
+            scrollToBottom();
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // CẬP NHẬT SIDEBAR - Danh sách người dùng
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Cập nhật danh sách user trong sidebar
+     */
+    public void updateUserList(List<String> users) {
+        SwingUtilities.invokeLater(() -> {
+            userListPanel.removeAll();
+
+            for (String user : users) {
+                userListPanel.add(createUserItem(user));
+                userListPanel.add(Box.createVerticalStrut(2));
+            }
+
+            // Cập nhật số người online
+            onlineCountLabel.setText("Đang online: " + users.size());
+            headerStatusLabel.setText("● " + users.size() + " người đang online");
+
+            userListPanel.revalidate();
+            userListPanel.repaint();
+        });
+    }
+
+    /**
+     * Tạo item người dùng trong sidebar
+     */
+    private JPanel createUserItem(String username) {
+        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 6));
+        item.setBackground(COLOR_BG_SIDEBAR);
+        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        item.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+
+        // Avatar nhỏ
+        JPanel miniAvatar = createMiniAvatar(username);
+
+        // Tên + chấm xanh online
+        JPanel namePanel = new JPanel(new BorderLayout(4, 0));
+        namePanel.setOpaque(false);
+
+        JLabel nameLabel = new JLabel(username);
+        nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        nameLabel.setForeground(COLOR_TEXT_DARK);
+
+        JPanel onlineDotPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        onlineDotPanel.setOpaque(false);
+
+        JLabel dotLabel = new JLabel("● Online");
+        dotLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        dotLabel.setForeground(COLOR_ONLINE_DOT);
+
+        onlineDotPanel.add(dotLabel);
+
+        namePanel.add(nameLabel, BorderLayout.CENTER);
+        namePanel.add(onlineDotPanel, BorderLayout.SOUTH);
+
+        item.add(miniAvatar);
+        item.add(namePanel);
+
+        // Hiệu ứng hover
+        item.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                item.setBackground(new Color(0xF0F2F5));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                item.setBackground(COLOR_BG_SIDEBAR);
+            }
+        });
+
+        return item;
+    }
+
+    /**
+     * Tạo avatar thu nhỏ cho sidebar
+     */
+    private JPanel createMiniAvatar(String name) {
+        JPanel avatar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                Color[] colors = {
+                        new Color(0xFF6B6B), new Color(0x4ECDC4), new Color(0x45B7D1),
+                        new Color(0x96CEB4), new Color(0xFECA57), new Color(0xA29BFE),
+                        new Color(0xFD79A8), new Color(0x00B894), new Color(0xE17055)
+                };
+                int colorIdx = Math.abs(name.hashCode()) % colors.length;
+
+                g2.setColor(colors[colorIdx]);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                String letter = name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase();
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(letter)) / 2;
+                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(letter, x, y);
+                g2.dispose();
+            }
+        };
+        avatar.setOpaque(false);
+        avatar.setPreferredSize(new Dimension(38, 38));
+        avatar.setMinimumSize(new Dimension(38, 38));
+        avatar.setMaximumSize(new Dimension(38, 38));
+        return avatar;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // TIỆN ÍCH
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Gửi tin nhắn (được gọi khi nhấn nút Gửi hoặc Enter)
+     */
+    private void sendMessage() {
+        String text = inputField.getText().trim();
+        if (!text.isEmpty() && frameListener != null) {
+            frameListener.onSendMessage(text);
+            inputField.setText("");
+        }
+        inputField.requestFocus();
+    }
+
+    /**
+     * Cuộn xuống cuối danh sách tin nhắn
+     */
+    public void scrollToBottom() {
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar scrollBar = chatScroll.getVerticalScrollBar();
+            scrollBar.setValue(scrollBar.getMaximum());
+        });
+    }
+
+    /**
+     * Hiển thị dialog nhập username khi vào
+     */
+    public AuthRequest showLoginDialog() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 8, 0);
+
+        JLabel titleLabel = new JLabel("Chào mừng đến với Chat App! 👋");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        titleLabel.setForeground(COLOR_TEXT_DARK);
+        panel.add(titleLabel, gbc);
+
+        gbc.gridy = 1;
+        JLabel subLabel = new JLabel("Nhập tài khoản để đăng nhập hoặc đăng ký:");
+        subLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        subLabel.setForeground(COLOR_TEXT_GRAY);
+        panel.add(subLabel, gbc);
+
+        gbc.gridy = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(4, 0, 0, 0);
+
+        javax.swing.JTextField nameField = new javax.swing.JTextField(20);
+        nameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        nameField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xCCCCCC)),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        panel.add(nameField, gbc);
+
+        gbc.gridy = 3;
+        gbc.insets = new Insets(10, 0, 0, 0);
+        JPasswordField passField = new JPasswordField(20);
+        passField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        passField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xCCCCCC)),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        panel.add(passField, gbc);
+
+        // Custom dialog
+        Object[] options = {"Đăng nhập", "Đăng ký", "Hủy"};
+        int result = JOptionPane.showOptionDialog(
+                this,
+                panel,
+                "Xác thực Chat",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+        if (result == 0 || result == 1) {
+            String name = nameField.getText().trim();
+            String password = new String(passField.getPassword());
+            if (!name.isEmpty() && !password.isEmpty()) {
+                return new AuthRequest(name, password, result == 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Hiển thị thông báo lỗi
+     */
+    public void showError(String message) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+        });
+    }
+
+    /**
+     * Cập nhật trạng thái kết nối ở header
+     */
+    public void setConnectionStatus(boolean connected, String username) {
+        SwingUtilities.invokeLater(() -> {
+            if (connected) {
+                headerStatusLabel.setText("● Đã kết nối với tư cách: " + username);
+                headerStatusLabel.setForeground(new Color(0xBBF0C0));
+                setTitle("💬 Chat App - " + username);
+            } else {
+                headerStatusLabel.setText("● Đã ngắt kết nối");
+                headerStatusLabel.setForeground(new Color(0xFFCDD2));
+            }
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SETTER / GETTER
+    // ─────────────────────────────────────────────────────────────
+
+    public void setFrameListener(ChatFrameListener listener) {
+        this.frameListener = listener;
+    }
+
+    public void setCurrentUsername(String username) {
+        this.currentUsername = username;
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ROOM MANAGEMENT (MỚI)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Cập nhật danh sách phòng trên sidebar.
+     * rooms: mỗi phần tử là String[] { id, name, currentUsers, limit }
+     */
+    public void updateRoomList(java.util.List<String[]> rooms) {
+        SwingUtilities.invokeLater(() -> {
+            cachedRooms = new ArrayList<>(rooms);
+            renderRoomList();
+        });
+    }
+
+    private void renderRoomList() {
+        roomListPanel.removeAll();
+        for (String[] room : cachedRooms) {
+            try {
+                int    id      = Integer.parseInt(room[0].trim());
+                String name    = room[1].trim();
+                int    current = Integer.parseInt(room[2].trim());
+                int    limit   = Integer.parseInt(room[3].trim());
+                roomListPanel.add(createRoomItem(id, name, current, limit));
+            } catch (Exception ignored) {}
+        }
+        roomListPanel.revalidate();
+        roomListPanel.repaint();
+    }
+
+    /** Tạo một hàng phòng trong sidebar */
+    private JPanel createRoomItem(int roomId, String name, int currentUsers, int limit) {
+        boolean isActive = (roomId == currentRoomId);
+        Color   bgColor  = isActive ? new Color(0xDCEEFE) : COLOR_BG_SIDEBAR;
+
+        JPanel item = new JPanel(new BorderLayout(8, 0));
+        item.setBackground(bgColor);
+        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
+        item.setCursor(isActive
+                ? Cursor.getDefaultCursor()
+                : Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        item.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xF0F2F5)),
+                BorderFactory.createEmptyBorder(10, 16, 10, 12)));
+
+        // Left: tên phòng + số người
+        JPanel leftPanel = new JPanel(new GridLayout(2, 1, 0, 2));
+        leftPanel.setOpaque(false);
+
+        JLabel nameLabel = new JLabel("🚪 " + name);
+        nameLabel.setFont(isActive ? FONT_USERNAME : new Font("Segoe UI", Font.PLAIN, 13));
+        nameLabel.setForeground(isActive ? COLOR_ACCENT : COLOR_TEXT_DARK);
+
+        JLabel infoLabel = new JLabel(currentUsers + " / " + limit + " người");
+        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoLabel.setForeground(COLOR_TEXT_GRAY);
+
+        leftPanel.add(nameLabel);
+        leftPanel.add(infoLabel);
+        item.add(leftPanel, BorderLayout.CENTER);
+
+        // Right: chấm xanh nếu đang ở phòng này
+        if (isActive) {
+            JLabel dot = new JLabel("●");
+            dot.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            dot.setForeground(COLOR_ACCENT);
+            item.add(dot, BorderLayout.EAST);
+        }
+
+        // Click để vào phòng (chỉ khi chưa ở phòng đó)
+        if (!isActive) {
+            item.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (frameListener != null) frameListener.onJoinRoom(roomId);
+                }
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    item.setBackground(new Color(0xEBF5FE));
+                    item.repaint();
+                }
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    item.setBackground(bgColor);
+                    item.repaint();
+                }
+            });
+        }
+        return item;
+    }
+
+    /**
+     * Cập nhật UI khi người dùng vào phòng mới:
+     * - Cập nhật tiêu đề header
+     * - Xóa chat cũ
+     * - Highlight phòng đang vào
+     */
+    public void setCurrentRoom(int roomId, String roomName) {
+        this.currentRoomId = roomId;
+        SwingUtilities.invokeLater(() -> {
+            if (headerRoomLabel != null) headerRoomLabel.setText(roomName);
+            clearChat();
+            renderRoomList(); // redraw để phòng hiện tại đổi màu ngay
+        });
+    }
+
+    /** Xóa toàn bộ tin nhắn trong khu chat (khi đổi phòng) */
+    public void clearChat() {
+        SwingUtilities.invokeLater(() -> {
+            chatPanel.removeAll();
+            chatPanel.revalidate();
+            chatPanel.repaint();
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPER CLASS - Bo góc border
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Border bo góc tùy chỉnh
+     */
+    private static class RoundedBorder implements Border {
+        private int radius;
+        private Color color;
+
+        RoundedBorder(int radius, Color color) {
+            this.radius = radius;
+            this.color = color;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(radius / 2, radius, radius / 2, radius);
+        }
+
+        @Override
+        public boolean isBorderOpaque() {
+            return false;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPER - Chuyển text sang HTML để JLabel tự co vừa nội dung
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Chuyển plain text sang HTML với max-width để JLabel tự wrap dòng.
+     * 
+     * @param text  Nội dung tin nhắn
+     * @param maxPx Chiều rộng tối đa tính bằng pixel trước khi xuống dòng
+     */
+    private static String toHtml(String text, int maxPx) {
+        String escaped = text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\n", "<br>");
+        // max-width: HTML renderer sẽ wrap dòng khi vượt quá maxPx.
+        // fitBubbleTight() sẽ shrink bubble lại nếu text ngắn hơn.
+        return "<html><div style='max-width:" + maxPx + "px; font-size:11pt;'>" + escaped + "</div></html>";
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // INNER CLASS - JTextField với Placeholder
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * JTextField tùy chỉnh hỗ trợ hiển thị placeholder text
+     */
+    static class PlaceholderTextField extends javax.swing.JTextField {
+        private String placeholder;
+
+        public PlaceholderTextField() {
+            super();
+        }
+
+        public void setPlaceholder(String placeholder) {
+            this.placeholder = placeholder;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (getText().isEmpty() && placeholder != null && !hasFocus()) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(new Color(0xAAAAAA));
+                g2.setFont(getFont().deriveFont(Font.ITALIC));
+                Insets ins = getInsets();
+                FontMetrics fm = g2.getFontMetrics();
+                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(placeholder, ins.left, y);
+                g2.dispose();
+            }
+        }
+    }
+}
