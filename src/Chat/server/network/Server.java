@@ -66,7 +66,7 @@ public class Server {
         gui.setServer(this);
 
         new Thread(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            try (ServerSocket serverSocket = new ServerSocket(PORT, 50, InetAddress.getByName("0.0.0.0"))) {
                 gui.setServerStatus(true, PORT);
                 String localIP = InetAddress.getLocalHost().getHostAddress();
                 gui.logSystem("Server đã sẵn sàng! Địa chỉ: " + localIP + ":" + PORT);
