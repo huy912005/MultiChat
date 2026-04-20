@@ -40,19 +40,8 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
     private void startConnection() {
         // Hiển thị dialog nhập username TRÊN Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
-            // ✅ BƯỚC 1: Hỏi IP server trước
-            String serverIp = JOptionPane.showInputDialog(null,
-                    "Nhập IP của server:\n(Nếu server cùng máy: 127.0.0.1 hoặc localhost)\n(Nếu server ở máy khác: nhập IP LAN của server)",
-                    "192.168.1.16");
-            
-            if (serverIp == null || serverIp.trim().isEmpty()) {
-                System.out.println("[CLIENT] Người dùng hủy nhập IP. Thoát...");
-                System.exit(0);
-                return;
-            }
-            
-            // Cấu hình server host
-            ClientSocket.setServerHost(serverIp.trim());
+            // ✅ Server IP cố định: 159.65.134.130 (Digital Ocean) - không cần nhập nữa
+            ClientSocket.setServerHost("159.65.134.130");
             
             boolean connected = false;
             

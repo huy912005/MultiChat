@@ -244,27 +244,95 @@ sudo systemctl restart chat-app
 
 ## TROUBLESHOOTING
 
+### 🔴 LỖI: "Communications link failure" (MySQL không kết nối)
+
+**Nguyên nhân:** MySQL service không chạy hoặc database chưa được tạo
+
+**Fix nhanh (copy-paste vào server):**
+```bash
+# Start MySQL
+sudo systemctl start mysql && sudo systemctl enable mysql && sleep 2
+
+# Create database + user
+sudo mysql -u root << EOF
+CREATE DATABASE IF NOT EXISTS ChatAppDB CHARACTER SET utf8mb4;
+CREATE USER IF NOT EXISTS 'chatuser'@'localhost' IDENTIFIED BY 'ChatApp@123';
+CREATE USER IF NOT EXISTS 'chatuser'@'%' IDENTIFIED BY 'ChatApp@123';
+GRANT ALL PRIVILEGES ON ChatAppDB.* TO 'chatuser'@'localhost';
+GRANT ALL PRIVILEGES ON ChatAppDB.* TO 'chatuser'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+# Set env vars + restart server
+export CHAT_DB_URL="jdbc:mysql://localhost:3306/ChatAppDB?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC"
+export CHAT_DB_USER="chatuser"
+export CHAT_DB_PASS="ChatApp@123"
+pkill -f Chat.server.Main || true
+cd /opt/chat-app
+nohup java -jar dist/ChatApp-TCP.jar > server.log 2>&1 &
+sleep 2 && tail -10 server.log
+```
+
+📖 **Chi tiết:** Xem [QUICK_FIX_VI.md](QUICK_FIX_VI.md) hoặc [FIX_MYSQL_ERROR_VI.md](FIX_MYSQL_ERROR_VI.md)
+
+---
+
 ### 1. Server không khởi động
 ```bash
-sudo journalctl -u chat-app -n 50  # Xem 50 dòng log gần nhất
+# Xem logs
+tail -100 server.log
+
+# Hoặc nếu dùng systemd:
+sudo journalctl -u chat-app -n 50
 ```
 
 ### 2. Không kết nối được MySQL
-- Kiểm tra MySQL đã chạy: `sudo systemctl status mysql`
-- Kiểm tra credentials: `mysql -u chatuser -p`
+```bash
+# Kiểm tra MySQL chạy?
+sudo systemctl status mysql
+
+# Test connection
+mysql -u chatuser -p'ChatApp@123' -e "SELECT 1;"
+
+# Nếu không có user, tạo:
+sudo mysql -u root -e "CREATE USER 'chatuser'@'localhost' IDENTIFIED BY 'ChatApp@123'; GRANT ALL ON ChatAppDB.* TO 'chatuser'@'localhost'; FLUSH PRIVILEGES;"
+```
 
 ### 3. Client không kết nối được server
-- Kiểm tra port: `netstat -tuln | grep 5000`
-- Kiểm tra firewall: `sudo ufw status`
-- Ping server: `ping [IP_ADDRESS]`
+```bash
+# Kiểm tra port 5000 mở?
+netstat -tuln | grep 5000
+
+# Nếu không, check firewall:
+sudo ufw status
+sudo ufw allow 5000/tcp
+
+# Test từ máy khác:
+ping [IP_ADDRESS]
+```
 
 ### 4. Xem logs server
 ```bash
-# Nếu dùng nohup
+# Realtime logs
 tail -f /opt/chat-app/server.log
 
-# Nếu dùng systemd
+# Hoặc systemd:
 sudo journalctl -u chat-app -f
+```
+
+### 5. Multiple clients liên tục bị timeout/disconnect
+**Nguyên nhân:** Server quá tải hoặc network issue
+
+**Fix:**
+```bash
+# Tăng TCP buffer size
+sudo sysctl -w net.core.rmem_max=134217728
+sudo sysctl -w net.core.wmem_max=134217728
+
+# Persistent:
+echo "net.core.rmem_max=134217728" >> /etc/sysctl.conf
+echo "net.core.wmem_max=134217728" >> /etc/sysctl.conf
+sudo sysctl -p
 ```
 
 ---
