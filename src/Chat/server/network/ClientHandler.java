@@ -92,6 +92,7 @@ public class ClientHandler implements Runnable {
                 gui.logSystem("User '" + username + "' đã đăng nhập.");
                 gui.logJoin(username, socket.getInetAddress().getHostAddress());
                 gui.updateOnlineUserCount();  // ✅ CẬP NHẬT SỐ USER ONLINE
+                Server.broadcastToAdmins(new Message("JOIN", username + " đã kết nối", Message.Type.ADMIN_LOG));
 
                 // Gửi danh sách phòng cho client trước
                 sendRoomListToClient();
