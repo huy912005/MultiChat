@@ -30,6 +30,10 @@ public class Server {
     private static final ConcurrentHashMap<Integer, List<ClientHandler>> roomGroups =
             new ConcurrentHashMap<>();
 
+    // Danh sách các admin remote đang kết nối
+    private static final java.util.concurrent.CopyOnWriteArrayList<ClientHandler> adminClients =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
     private final ExecutorService threadPool;
     private final ServerLogger gui;
 
@@ -55,6 +59,22 @@ public class Server {
         return roomGroups;
     }
 
+    public static void registerAdmin(ClientHandler admin) {
+        adminClients.add(admin);
+    }
+
+    public static void removeAdmin(ClientHandler admin) {
+        adminClients.remove(admin);
+    }
+
+    public static void broadcastToAdmins(Message msg) {
+        for (ClientHandler admin : adminClients) {
+            try {
+                admin.sendMessage(msg);
+            } catch (Exception ignored) {}
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  Khởi động Server
     // ══════════════════════════════════════════════════════════════
@@ -70,6 +90,34 @@ public class Server {
                 gui.setServerStatus(true, PORT);
                 String localIP = InetAddress.getLocalHost().getHostAddress();
                 gui.logSystem("Server đã sẵn sàng! Địa chỉ: " + localIP + ":" + PORT);
+
+                // Thread kiểm tra user bị kick từ DB (Do ServerGUI thực hiện từ xa)
+                new Thread(() -> {
+                    while (!serverSocket.isClosed()) {
+                        try {
+                            Thread.sleep(3000); // Check mỗi 3 giây
+                            String sql = "SELECT tenUser FROM User WHERE trangThai = 'KICKED'";
+                            List<String> kickedUsers = new ArrayList<>();
+                            try (Connection conn = DBContext.getConnection();
+                                 PreparedStatement ps = conn.prepareStatement(sql);
+                                 ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    kickedUsers.add(rs.getString("tenUser"));
+                                }
+                            }
+                            // Process kicks
+                            for (String u : kickedUsers) {
+                                kickUser(u);
+                                // Update status to offline
+                                try (Connection conn = DBContext.getConnection();
+                                     PreparedStatement ps = conn.prepareStatement("UPDATE User SET trangThai = 'OFFLINE' WHERE tenUser = ?")) {
+                                    ps.setString(1, u);
+                                    ps.executeUpdate();
+                                }
+                            }
+                        } catch (Exception e) {}
+                    }
+                }).start();
 
                 while (!serverSocket.isClosed()) {
                     Socket clientSocket = serverSocket.accept();
@@ -97,6 +145,7 @@ public class Server {
         if (handler != null) {
             handler.kickByAdmin();
             gui.logSystem("🔨 Admin đã kick user: " + username);
+            broadcastToAdmins(new Message("SYS", "🔨 Admin đã kick user: " + username, Message.Type.ADMIN_LOG));
         } else {
             gui.logError("Không tìm thấy user đang online: " + username);
         }
@@ -137,10 +186,12 @@ public class Server {
             ps.setInt(2, limit);
             ps.executeUpdate();
             gui.logSystem("✅ Đã tạo phòng mới: \"" + name + "\" (giới hạn: " + limit + " người)");
+            broadcastToAdmins(new Message("SYS", "✅ Đã tạo phòng mới: " + name, Message.Type.ADMIN_LOG));
             broadcastRoomListToAll(); // Thông báo cho tất cả client
             return true;
         } catch (Exception e) {
             gui.logError("DB Error (createRoom): " + e.getMessage());
+            broadcastToAdmins(new Message("ERROR", "DB Lỗi tạo phòng: " + e.getMessage(), Message.Type.ADMIN_LOG));
             return false;
         }
     }

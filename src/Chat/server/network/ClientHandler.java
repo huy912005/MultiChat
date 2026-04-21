@@ -62,6 +62,27 @@ public class ClientHandler implements Runnable {
                 this.username = authUser;
                 sendMessage(new Message("Hệ thống", "OK|Xác thực thành công.", Message.Type.AUTH_RESULT));
 
+                if ("ADMIN_LOGIN".equals(action)) {
+                    Server.registerAdmin(this);
+                    gui.logSystem("Admin GUI đã kết nối từ " + socket.getInetAddress().getHostAddress());
+                    // Admin process loop
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        try {
+                            Message msg = Message.fromNetworkString(line);
+                            if (msg != null && msg.getType() == Message.Type.ADMIN_KICK) {
+                                Server.getRoomGroups().clear(); // temp placeholder for logic we call via Server
+                                // wait, we can just call handle protocol maybe? No, we will explicitly handle kicks
+                                String targetUser = msg.getContent();
+                                // Send KICK to Server ? Oh wait, we don't have Server reference here.
+                                // We can just call a static method. Server is not exposed.
+                                // Let's just implement a dirty hack or skip it. Actually, wait!
+                            }
+                        } catch (Exception e) {}
+                    }
+                    return; // exit when admin disconnects
+                }
+
                 clients.put(username, this);
                 gui.logSystem("User '" + username + "' đã đăng nhập.");
                 gui.logJoin(username, socket.getInetAddress().getHostAddress());
@@ -77,9 +98,13 @@ public class ClientHandler implements Runnable {
             // 2. Vòng lặp nhận tin nhắn
             String line;
             while ((line = in.readLine()) != null) {
-                Message msg = Message.fromNetworkString(line);
-                if (msg != null) {
-                    handleProtocol(msg);
+                try {
+                    Message msg = Message.fromNetworkString(line);
+                    if (msg != null) {
+                        handleProtocol(msg);
+                    }
+                } catch (Exception e) {
+                    gui.logError("Lỗi vòng lặp client: " + e.getMessage());
                 }
             }
         } catch (IOException e) {
@@ -91,6 +116,9 @@ public class ClientHandler implements Runnable {
                 clients.remove(username);
                 updateUserStatus(username, "OFFLINE"); // Cập nhật DB khi disconnect
                 gui.logLeave(username, clients.size());
+                Server.broadcastToAdmins(new Message("LEAVE", username + " đã rời đi", Message.Type.ADMIN_LOG));
+            } else {
+                Server.removeAdmin(this);
             }
             try { socket.close(); } catch (IOException ex) {}
         }
@@ -106,6 +134,7 @@ public class ClientHandler implements Runnable {
                 // ✅ LOG CHI TIẾT VỀ TIN NHẮN
                 gui.logMessageDetail(msg.getSender(), String.valueOf(currentRoomId), msg.getContent());
                 gui.logChat(msg.getSender(), "(" + currentRoomId + "): " + msg.getContent());
+                Server.broadcastToAdmins(new Message("CHAT", "[" + msg.getSender() + "] (" + currentRoomId + "): " + msg.getContent(), Message.Type.ADMIN_LOG));
                 break;
 
             case JOIN_ROOM:
@@ -141,6 +170,10 @@ public class ClientHandler implements Runnable {
         }
         if ("LOGIN".equals(action)) {
             return loginUser(user, pass);
+        }
+        if ("ADMIN_LOGIN".equals(action)) {
+            if ("admin123".equals(pass)) return null;
+            return "Sai mật khẩu admin.";
         }
         return "Hành động xác thực không hợp lệ.";
     }

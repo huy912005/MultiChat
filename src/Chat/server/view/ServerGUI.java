@@ -404,7 +404,7 @@ public class ServerGUI extends JFrame implements ServerLogger {
     //  HÀNH ĐỘNG ADMIN
     // ══════════════════════════════════════════════════════════════
 
-    /** Kick user được chọn trong danh sách */
+    /** Kick user được chọn trong danh sách bằng cách đánh dấu DB vào trạng thái KICKED */
     private void performKick() {
         String selected = userList.getSelectedValue();
         if (selected == null) {
@@ -416,16 +416,37 @@ public class ServerGUI extends JFrame implements ServerLogger {
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn kick \"" + selected + "\" khỏi server?",
                 "⚠  Xác nhận Kick", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (confirm == JOptionPane.YES_OPTION && server != null) {
-            server.kickUser(selected);
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (server != null) {
+                server.kickUser(selected); // Nếu Cloud chia sẻ JVM (không áp dụng khi Console mode)
+            }
+            // Đánh dấu DB KICKED
+            String sql = "UPDATE User SET trangThai = 'KICKED' WHERE tenUser = ?";
+            try (java.sql.Connection conn = Chat.Dao.DBContext.getConnection();
+                 java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, selected);
+                ps.executeUpdate();
+                logSystem("🔧 Yêu cầu kick: " + selected + " (Cloud Server sẽ xử lý)");
+            } catch (Exception e) {
+                logError("Lỗi DB khi kick: " + e.getMessage());
+            }
         }
     }
 
-    /** Tải lại bảng phòng từ DB */
+    /** Lấy danh sách phòng từ DB */
     public void refreshRoomTable() {
-        if (server == null || roomTableModel == null) return;
+        if (roomTableModel == null) return;
         new Thread(() -> {
-            List<Object[]> rooms = server.getAllRooms();
+            List<Object[]> rooms = new java.util.ArrayList<>();
+            String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room ORDER BY maRoom";
+            try (java.sql.Connection conn = Chat.Dao.DBContext.getConnection();
+                 java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rooms.add(new Object[]{rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getInt(4)});
+                }
+            } catch (Exception e) {}
+            
             SwingUtilities.invokeLater(() -> {
                 roomTableModel.setRowCount(0);
                 for (Object[] row : rooms) roomTableModel.addRow(row);
@@ -433,37 +454,30 @@ public class ServerGUI extends JFrame implements ServerLogger {
         }).start();
     }
 
-    /** Tải lại danh sách users online */
+    /** Tải lại danh sách users online từ DB */
     public void refreshUserList() {
-        if (server == null || userListModel == null) return;
-        SwingUtilities.invokeLater(() -> {
-            userListModel.clear();
-            Map<Integer, List<ClientHandler>> rooms = Server.getRoomGroups();
-            int totalUsers = 0;
-            
-            // Tạo danh sách tất cả users từ tất cả phòng (không trùng lặp)
-            java.util.Set<String> uniqueUsers = new java.util.LinkedHashSet<>();
-            if (rooms != null) {
-                for (List<ClientHandler> members : rooms.values()) {
-                    if (members != null) {
-                        synchronized (members) {
-                            for (ClientHandler ch : members) {
-                                if (ch != null && ch.getUsername() != null) {
-                                    uniqueUsers.add(ch.getUsername());
-                                }
-                            }
-                        }
-                    }
+        if (userListModel == null) return;
+        new Thread(() -> {
+            Set<String> onlineUsers = new java.util.LinkedHashSet<>();
+            String sql = "SELECT tenUser FROM User WHERE trangThai = 'ONLINE'";
+            try (java.sql.Connection conn = Chat.Dao.DBContext.getConnection();
+                 java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    onlineUsers.add(rs.getString(1));
                 }
+            } catch (Exception e) {
+                // Ignore
             }
             
-            totalUsers = uniqueUsers.size();
-            for (String username : uniqueUsers) {
-                userListModel.addElement(username);
-            }
-            
-            lblOnlineCount.setText(String.valueOf(totalUsers));
-        });
+            SwingUtilities.invokeLater(() -> {
+                userListModel.clear();
+                for (String username : onlineUsers) {
+                    userListModel.addElement(username);
+                }
+                lblOnlineCount.setText(String.valueOf(onlineUsers.size()));
+            });
+        }).start();
     }
 
     /** Dialog tạo phòng mới */

@@ -22,7 +22,10 @@ public class Message implements Serializable {
         HISTORY, // Gửi lịch sử tin nhắn
         ROOM_LIST, // Server gửi danh sách tất cả phòng
         AUTH, // Client gửi yêu cầu đăng nhập/đăng ký
-        AUTH_RESULT // Server trả kết quả xác thực
+        AUTH_RESULT, // Server trả kết quả xác thực
+        ADMIN_LOG, // Gửi log từ server đến Admin GUI
+        ADMIN_USER_LIST, // Gửi danh sách user toàn server
+        ADMIN_KICK // Admin gửi yêu cầu kick
     }
 
     private String sender; // Tên người gửi
