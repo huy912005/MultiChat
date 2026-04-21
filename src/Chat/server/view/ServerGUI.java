@@ -84,7 +84,12 @@ public class ServerGUI extends JFrame implements ServerLogger {
                 adminOut.println(authMsg.toNetworkString());
 
                 String line;
-                while ((line = in.readLine()) != null) {
+                while (true) {
+                    line = in.readLine();
+                    if (line == null) {
+                        logError("[CLOUD] Bị ngắt kết nối với VPS (Nguyên nhân: VPS đang chạy code CŨ chưa được up code mới lên).");
+                        break;
+                    }
                     Chat.server.model.Message msg = Chat.server.model.Message.fromNetworkString(line);
                     if (msg != null && msg.getType() == Chat.server.model.Message.Type.ADMIN_LOG) {
                         String type = msg.getSender(); 
