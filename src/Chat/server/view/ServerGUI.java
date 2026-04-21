@@ -1,5 +1,6 @@
 package Chat.server.view;
 
+import Chat.server.network.ClientHandler;
 import Chat.server.network.Server;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -10,6 +11,7 @@ import java.awt.event.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -432,13 +434,33 @@ public class ServerGUI extends JFrame implements ServerLogger {
     /** Tải lại danh sách users online */
     public void refreshUserList() {
         if (server == null || userListModel == null) return;
-        List<String> onlineUsers = server.getOnlineUsers();
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
-            for (String username : onlineUsers) {
+            Map<Integer, List<ClientHandler>> rooms = Server.getRoomGroups();
+            int totalUsers = 0;
+            
+            // Tạo danh sách tất cả users từ tất cả phòng (không trùng lặp)
+            java.util.Set<String> uniqueUsers = new java.util.LinkedHashSet<>();
+            if (rooms != null) {
+                for (List<ClientHandler> members : rooms.values()) {
+                    if (members != null) {
+                        synchronized (members) {
+                            for (ClientHandler ch : members) {
+                                if (ch != null && ch.getUsername() != null) {
+                                    uniqueUsers.add(ch.getUsername());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            totalUsers = uniqueUsers.size();
+            for (String username : uniqueUsers) {
                 userListModel.addElement(username);
             }
-            lblOnlineCount.setText(String.valueOf(onlineUsers.size()));
+            
+            lblOnlineCount.setText(String.valueOf(totalUsers));
         });
     }
 

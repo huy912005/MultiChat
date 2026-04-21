@@ -140,11 +140,9 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
      */
     @Override
     public void onMessageReceived(Message message) {
-        // Switch theo loại tin nhắn
         switch (message.getType()) {
             
             case CHAT:
-                // Tin nhắn chat thông thường
                 boolean isMyMessage = message.getSender().equals(username);
                 view.addChatMessage(
                         message.getSender(),
@@ -155,17 +153,14 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                 break;
                 
             case JOIN:
-                // Thông báo người dùng vào
-                view.addSystemMessage("👋 " + message.getContent());
+                view.addSystemMessage("👋 " + message.getSender() + " đã vào phòng");
                 break;
                 
             case LEAVE:
-                // Thông báo người dùng rời
-                view.addSystemMessage("👋 " + message.getContent());
+                view.addSystemMessage("👋 " + message.getSender() + " rời phòng");
                 break;
                 
             case USER_LIST:
-                // Cập nhật danh sách người dùng online
                 String userListStr = message.getContent();
                 if (userListStr != null && !userListStr.isEmpty()) {
                     List<String> users = Arrays.asList(userListStr.split(","));
@@ -183,7 +178,6 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                 break;
 
             case JOIN_ROOM:
-                // Server phản hồi sau khi vào phòng: "roomId:roomName"
                 String[] roomInfo = message.getContent().split(":", 2);
                 if (roomInfo.length == 2) {
                     try {
@@ -196,7 +190,6 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                 break;
 
             case ROOM_LIST:
-                // Content: "1:Sảnh Chung:2:100,2:Phòng Học:1:50,..."
                 String listContent = message.getContent();
                 if (listContent != null && !listContent.isEmpty()) {
                     List<String[]> rooms = new ArrayList<>();
