@@ -61,10 +61,50 @@ public class ServerGUI extends JFrame implements ServerLogger {
     private static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    // KẾT NỐI CLOUD ADMIN
+    private java.io.PrintWriter adminOut;
+    private final String CLOUD_IP = "159.65.134.130";
+
     public ServerGUI() {
         initFrame();
         initComponents();
         setVisible(true);
+        connectToCloudAdmin();
+    }
+
+    private void connectToCloudAdmin() {
+        new Thread(() -> {
+            try {
+                logSystem("[CLOUD] Đang cố gắng kết nối tới Cloud Server " + CLOUD_IP + "...");
+                java.net.Socket socket = new java.net.Socket(CLOUD_IP, 5000);
+                adminOut = new java.io.PrintWriter(new java.io.OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true);
+                java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream(), "UTF-8"));
+
+                Chat.server.model.Message authMsg = new Chat.server.model.Message("ADMIN", "ADMIN_LOGIN|admin123", Chat.server.model.Message.Type.AUTH);
+                adminOut.println(authMsg.toNetworkString());
+
+                String line;
+                while ((line = in.readLine()) != null) {
+                    Chat.server.model.Message msg = Chat.server.model.Message.fromNetworkString(line);
+                    if (msg != null && msg.getType() == Chat.server.model.Message.Type.ADMIN_LOG) {
+                        String type = msg.getSender(); 
+                        String content = msg.getContent();
+                        if ("CHAT".equals(type)) {
+                            logChat("Cloud", content);
+                        } else if ("ERROR".equals(type)) {
+                            logError(content);
+                        } else {
+                            logSystem(content);
+                            if ("JOIN".equals(type) || "LEAVE".equals(type)) {
+                                refreshUserList(); 
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logError("[CLOUD] Mất kết nối đến Cloud: " + e.getMessage());
+            }
+        }).start();
     }
 
     /** Được gọi từ Server.start() để cấp quyền admin cho GUI */
@@ -419,6 +459,10 @@ public class ServerGUI extends JFrame implements ServerLogger {
         if (confirm == JOptionPane.YES_OPTION) {
             if (server != null) {
                 server.kickUser(selected); // Nếu Cloud chia sẻ JVM (không áp dụng khi Console mode)
+            }
+            if (adminOut != null) {
+                Chat.server.model.Message kickMsg = new Chat.server.model.Message("ADMIN", selected, Chat.server.model.Message.Type.ADMIN_KICK);
+                adminOut.println(kickMsg.toNetworkString());
             }
             // Đánh dấu DB KICKED
             String sql = "UPDATE User SET trangThai = 'KICKED' WHERE tenUser = ?";

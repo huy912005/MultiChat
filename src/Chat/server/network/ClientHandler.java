@@ -65,21 +65,26 @@ public class ClientHandler implements Runnable {
                 if ("ADMIN_LOGIN".equals(action)) {
                     Server.registerAdmin(this);
                     gui.logSystem("Admin GUI đã kết nối từ " + socket.getInetAddress().getHostAddress());
+                    sendMessage(new Message("SYS", "Đã kết nối luồng Log Cloud.", Message.Type.ADMIN_LOG));
+                    
                     // Admin process loop
                     String line;
                     while ((line = in.readLine()) != null) {
                         try {
                             Message msg = Message.fromNetworkString(line);
                             if (msg != null && msg.getType() == Message.Type.ADMIN_KICK) {
-                                Server.getRoomGroups().clear(); // temp placeholder for logic we call via Server
-                                // wait, we can just call handle protocol maybe? No, we will explicitly handle kicks
                                 String targetUser = msg.getContent();
-                                // Send KICK to Server ? Oh wait, we don't have Server reference here.
-                                // We can just call a static method. Server is not exposed.
-                                // Let's just implement a dirty hack or skip it. Actually, wait!
+                                ClientHandler ch = clients.get(targetUser);
+                                if (ch != null) {
+                                    ch.kickByAdmin();
+                                    Server.broadcastToAdmins(new Message("SYS", "Đã kick thành công: " + targetUser, Message.Type.ADMIN_LOG));
+                                } else {
+                                    sendMessage(new Message("ERROR", "User " + targetUser + " không online", Message.Type.ADMIN_LOG));
+                                }
                             }
                         } catch (Exception e) {}
                     }
+                    Server.removeAdmin(this);
                     return; // exit when admin disconnects
                 }
 
