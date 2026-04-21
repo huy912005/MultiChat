@@ -173,6 +173,7 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
             case SYSTEM:
                 if (message.getContent().contains("bị kick")) {
                     view.showError(message.getContent());
+                    view.disableChatUI();
                 }
                 view.addSystemMessage(message.getContent());
                 break;
@@ -213,6 +214,7 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
     public void onConnectionLost() {
         SwingUtilities.invokeLater(() -> {
             view.setConnectionStatus(false, username);
+            view.disableChatUI();
             view.addSystemMessage("❌ Mất kết nối với server!");
             view.showError("Mất kết nối với server!\nVui lòng khởi động lại ứng dụng.");
         });

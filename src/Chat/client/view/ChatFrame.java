@@ -916,6 +916,14 @@ public class ChatFrame extends JFrame {
         });
     }
 
+    /** Khóa toàn bộ tính năng nhắn tin khi bị kick hoặc mất kết nối */
+    public void disableChatUI() {
+        SwingUtilities.invokeLater(() -> {
+            if (inputField != null) inputField.setEnabled(false);
+            if (sendButton != null) sendButton.setEnabled(false);
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────
     // SETTER / GETTER
     // ─────────────────────────────────────────────────────────────
