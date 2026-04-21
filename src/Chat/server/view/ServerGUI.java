@@ -71,10 +71,9 @@ public class ServerGUI extends JFrame implements ServerLogger {
         setVisible(true);
         connectToCloudAdmin();
         
-        // Bắt đầu tự động cập nhật danh sách
+        // Bắt đầu tự động cập nhật danh sách các phòng
         SwingUtilities.invokeLater(this::refreshRoomTable);
-        SwingUtilities.invokeLater(this::refreshUserList);
-        new javax.swing.Timer(2000, e -> SwingUtilities.invokeLater(this::refreshUserList)).start();
+        new javax.swing.Timer(5000, e -> SwingUtilities.invokeLater(this::refreshRoomTable)).start();
     }
 
     private void connectToCloudAdmin() {
@@ -99,7 +98,20 @@ public class ServerGUI extends JFrame implements ServerLogger {
                     if (msg != null && msg.getType() == Chat.server.model.Message.Type.ADMIN_LOG) {
                         String type = msg.getSender(); 
                         String content = msg.getContent();
-                        if ("CHAT".equals(type)) {
+                        if ("ADMIN_SYNC".equals(type)) {
+                            SwingUtilities.invokeLater(() -> {
+                                String[] parts = content.split("\\|", 2);
+                                lblOnlineCount.setText(parts[0]);
+                                if (userListModel != null) {
+                                    userListModel.clear();
+                                    if (parts.length > 1 && !parts[1].isEmpty()) {
+                                        for (String u : parts[1].split(",")) {
+                                            userListModel.addElement(u);
+                                        }
+                                    }
+                                }
+                            });
+                        } else if ("CHAT".equals(type)) {
                             logChat("Cloud", content);
                         } else if ("ERROR".equals(type)) {
                             logError(content);

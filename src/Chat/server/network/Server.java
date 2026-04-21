@@ -115,6 +115,12 @@ public class Server {
                                     ps.executeUpdate();
                                 }
                             }
+                            
+                            // Broadcast sync state to Admins
+                            String userListStr = String.join(",", clients.keySet());
+                            Message syncMsg = new Message("ADMIN_SYNC", clients.size() + "|" + userListStr, Message.Type.ADMIN_LOG);
+                            broadcastToAdmins(syncMsg);
+
                         } catch (Exception e) {}
                     }
                 }).start();
