@@ -70,6 +70,11 @@ public class ServerGUI extends JFrame implements ServerLogger {
         initComponents();
         setVisible(true);
         connectToCloudAdmin();
+        
+        // Bắt đầu tự động cập nhật danh sách
+        SwingUtilities.invokeLater(this::refreshRoomTable);
+        SwingUtilities.invokeLater(this::refreshUserList);
+        new javax.swing.Timer(2000, e -> SwingUtilities.invokeLater(this::refreshUserList)).start();
     }
 
     private void connectToCloudAdmin() {
@@ -112,14 +117,9 @@ public class ServerGUI extends JFrame implements ServerLogger {
         }).start();
     }
 
-    /** Được gọi từ Server.start() để cấp quyền admin cho GUI */
+    /** Được gọi từ Server.start() để cấp quyền admin cho GUI (Chỉ dùng khi chạy local) */
     public void setServer(Server server) {
         this.server = server;
-        SwingUtilities.invokeLater(this::refreshRoomTable);
-        SwingUtilities.invokeLater(this::refreshUserList);
-        // Refresh user list mỗi 2 giây
-        Timer timer = new Timer(2000, e -> SwingUtilities.invokeLater(this::refreshUserList));
-        timer.start();
     }
 
     // ══════════════════════════════════════════════════════════════

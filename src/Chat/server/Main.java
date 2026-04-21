@@ -28,7 +28,8 @@ public class Main {
 
         SwingUtilities.invokeLater(() -> {
             ServerGUI gui = new ServerGUI();
-            new Server(gui).start();
+            // Tắt chạy server local để GUI chỉ dùng làm công cụ quản trị Cloud
+            // new Server(gui).start(); 
         });
     }
 }
