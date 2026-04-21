@@ -67,6 +67,10 @@ public class ServerGUI extends JFrame implements ServerLogger {
     public void setServer(Server server) {
         this.server = server;
         SwingUtilities.invokeLater(this::refreshRoomTable);
+        SwingUtilities.invokeLater(this::refreshUserList);
+        // Refresh user list mỗi 2 giây
+        Timer timer = new Timer(2000, e -> SwingUtilities.invokeLater(this::refreshUserList));
+        timer.start();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -425,6 +429,19 @@ public class ServerGUI extends JFrame implements ServerLogger {
         }).start();
     }
 
+    /** Tải lại danh sách users online */
+    public void refreshUserList() {
+        if (server == null || userListModel == null) return;
+        List<String> onlineUsers = server.getOnlineUsers();
+        SwingUtilities.invokeLater(() -> {
+            userListModel.clear();
+            for (String username : onlineUsers) {
+                userListModel.addElement(username);
+            }
+            lblOnlineCount.setText(String.valueOf(onlineUsers.size()));
+        });
+    }
+
     /** Dialog tạo phòng mới */
     private void showCreateRoomDialog() {
         if (server == null) return;
@@ -492,6 +509,7 @@ public class ServerGUI extends JFrame implements ServerLogger {
         SwingUtilities.invokeLater(() -> {
             appendLog("JOIN", username + " đã kết nối  (" + ip + ")", ACCENT_GREEN);
             addUserToList(username);
+            refreshUserList();  // Cập nhật ngay
             updateStats();
         });
     }
@@ -500,6 +518,7 @@ public class ServerGUI extends JFrame implements ServerLogger {
         SwingUtilities.invokeLater(() -> {
             appendLog("RỜI", username + " đã rời đi  (" + remaining + " người còn lại)", ACCENT_ORANGE);
             removeUserFromList(username);
+            refreshUserList();  // Cập nhật ngay
             updateStats();
         });
     }
@@ -529,6 +548,48 @@ public class ServerGUI extends JFrame implements ServerLogger {
             } else {
                 lblServerStatus.setText("● ĐÃ DỪNG");
                 lblServerStatus.setForeground(ACCENT_RED);
+            }
+        });
+    }
+
+    // ✅ Cập nhật số user online từ Server
+    public void updateOnlineUserCount() {
+        SwingUtilities.invokeLater(() -> {
+            Map<Integer, List<ClientHandler>> rooms = Server.getRoomGroups();
+            int totalOnline = 0;
+            if (rooms != null) {
+                for (List<ClientHandler> members : rooms.values()) {
+                    if (members != null) {
+                        synchronized (members) {
+                            totalOnline += members.size();
+                        }
+                    }
+                }
+            }
+            lblOnlineCount.setText(totalOnline + " người");
+            lblOnlineCount.setForeground(ACCENT_GREEN);
+        });
+    }
+
+    // ✅ Log tin nhắn chi tiết từ từng client
+    public void logMessageDetail(String sender, String room, String content) {
+        totalMessages.incrementAndGet();
+        SwingUtilities.invokeLater(() -> {
+            try {
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+                String message = String.format("[%s] 💬 %s (Phòng %s): %s\n", 
+                    timestamp, sender, room, content);
+                
+                SimpleAttributeSet attrs = new SimpleAttributeSet();
+                StyleConstants.setForeground(attrs, ACCENT_BLUE);
+                StyleConstants.setFontFamily(attrs, "JetBrains Mono");
+                StyleConstants.setFontSize(attrs, 13);
+                logDoc.insertString(logDoc.getLength(), message, attrs);
+                
+                logPane.setCaretPosition(logDoc.getLength());
+                updateStats();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         });
     }

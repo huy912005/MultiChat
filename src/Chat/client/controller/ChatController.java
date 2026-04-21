@@ -40,7 +40,7 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
     private void startConnection() {
         // Hiển thị dialog nhập username TRÊN Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
-            // ✅ Server IP cố định: 159.65.134.130 (Digital Ocean) - không cần nhập nữa
+            // ✅ Server IP cố định: 127.0.0.1 (Digital Ocean) - không cần nhập nữa
             ClientSocket.setServerHost("159.65.134.130");
             
             boolean connected = false;
@@ -71,7 +71,7 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                     // Báo lỗi và cho thử lại
                     String err = network.getLastErrorMessage();
                     if (err == null || err.isBlank()) {
-                        err = "Không thể kết nối tới server " + serverIp + ".";
+                        err = "Không thể kết nối tới server.";
                     }
                     view.showError(err);
                 }

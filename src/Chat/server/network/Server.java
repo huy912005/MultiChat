@@ -211,4 +211,11 @@ public class Server {
             gui.logError("DB Error (ensureDefaultRoom): " + e.getMessage());
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    //  Lấy danh sách online users cho GUI admin
+    // ══════════════════════════════════════════════════════════════
+    public List<String> getOnlineUsers() {
+        return new ArrayList<>(clients.keySet());
+    }
 }

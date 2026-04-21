@@ -9,7 +9,12 @@ echo Copying JAR file...
 copy /Y dist\ChatApp-TCP.jar deployment\
 
 echo Copying MySQL connector...
-copy /Y "F:\2025-2026\2026\mysql\mysql-connector-j-9.6.0\mysql-connector-j-9.6.0\mysql-connector-j-9.6.0.jar" deployment\
+if exist "lib\mysql-connector-j-9.6.0.jar" (
+    copy /Y "lib\mysql-connector-j-9.6.0.jar" deployment\
+) else (
+    echo [CANH BAO] MySQL connector khong tim thay trong lib\
+    echo Kiem tra: lib\mysql-connector-j-9.6.0.jar
+)
 
 echo Creating run scripts...
 

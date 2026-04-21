@@ -9,7 +9,7 @@ import java.net.*;
  * Xử lý gửi/nhận tin nhắn và callback khi nhận tin nhắn mới
  */
 public class ClientSocket {
-    // IP Digital Ocean Server: 159.65.134.130 (Fixed)
+    // IP Digital Ocean Server: 127.0.0.1 (Fixed)
     private static String SERVER_HOST = "159.65.134.130"; // ✅ Server IP Digital Ocean
     private static final int SERVER_PORT = 5000; // Cổng server (phải khớp với Server.java)
 

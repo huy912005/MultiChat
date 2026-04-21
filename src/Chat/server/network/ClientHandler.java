@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ClientHandler implements Runnable {
     private Socket socket;
@@ -64,6 +65,7 @@ public class ClientHandler implements Runnable {
                 clients.put(username, this);
                 gui.logSystem("User '" + username + "' đã đăng nhập.");
                 gui.logJoin(username, socket.getInetAddress().getHostAddress());
+                gui.updateOnlineUserCount();  // ✅ CẬP NHẬT SỐ USER ONLINE
 
                 // Gửi danh sách phòng cho client trước
                 sendRoomListToClient();
@@ -100,6 +102,9 @@ public class ClientHandler implements Runnable {
                 // Lưu vào DB trước khi gửi đi
                 saveMessageToDB(msg, currentRoomId);
                 broadcastToRoom(currentRoomId, msg);
+                
+                // ✅ LOG CHI TIẾT VỀ TIN NHẮN
+                gui.logMessageDetail(msg.getSender(), String.valueOf(currentRoomId), msg.getContent());
                 gui.logChat(msg.getSender(), "(" + currentRoomId + "): " + msg.getContent());
                 break;
 
@@ -254,8 +259,11 @@ public class ClientHandler implements Runnable {
         leaveCurrentRoom();
         this.currentRoomId = roomId;
 
-        // Thêm vào Map room trong Server
-        Server.getRoomGroups().computeIfAbsent(roomId, k -> new ArrayList<>()).add(this);
+        // Thêm vào Map room trong Server (sử dụng CopyOnWriteArrayList để tránh ConcurrentModificationException)
+        List<ClientHandler> roomMembers = Server.getRoomGroups().computeIfAbsent(roomId, k -> new CopyOnWriteArrayList<>());
+        synchronized (roomMembers) {
+            roomMembers.add(this);
+        }
 
         // Thông báo cho client phòng vừa vào (format: "roomId:roomName")
         String roomName = getRoomNameFromDB(roomId);
@@ -265,8 +273,14 @@ public class ClientHandler implements Runnable {
         sendMessage(new Message("Hệ thống", "Đang tải lịch sử phòng " + roomName + "...", Message.Type.SYSTEM));
         loadRoomHistory(roomId);
 
-        // Thông báo danh sách user mới cho mọi người trong phòng
+        // Thôi báo danh sách user mới cho mọi người trong phòng
+        gui.logSystem("[DEBUG-JOIN] roomId=" + roomId + ", username=" + username);
         broadcastUserList(roomId);
+        
+        // Gửi thông báo cho tất cả client trong phòng biết user mới vừa join
+        Message joinNotification = new Message("Hệ thống", username + " đã vào phòng", Message.Type.SYSTEM);
+        broadcastToRoom(roomId, joinNotification);
+        
         broadcastRoomListToAll();
         gui.logSystem(username + " đã vào phòng " + roomId + " (" + roomName + ")");
     }
@@ -276,11 +290,14 @@ public class ClientHandler implements Runnable {
 
         List<ClientHandler> members = Server.getRoomGroups().get(currentRoomId);
         if (members != null) {
-            members.remove(this);
+            synchronized (members) {  // Lock khi xóa để tránh race condition
+                members.remove(this);
+            }
             broadcastUserList(currentRoomId);
         }
         broadcastRoomListToAll();
         markUserRoomStatus(currentRoomId, "LEFT");
+        gui.updateOnlineUserCount();  // ✅ CẬP NHẬT SỐ USER ONLINE
         currentRoomId = -1;
     }
 
@@ -307,7 +324,14 @@ public class ClientHandler implements Runnable {
         // Kiểm tra quyền (Ví dụ: Chỉ chủ phòng hoặc Admin mới được kick)
         List<ClientHandler> members = Server.getRoomGroups().get(currentRoomId);
         if (members == null) return; // null check để tránh NullPointerException
-        for (ClientHandler ch : new ArrayList<>(members)) { // dùng copy để tránh ConcurrentModificationException
+        
+        // Sử dụng CopyOnWriteArrayList hoặc copy danh sách để tránh ConcurrentModificationException
+        List<ClientHandler> membersCopy;
+        synchronized (members) {
+            membersCopy = new ArrayList<>(members);
+        }
+        
+        for (ClientHandler ch : membersCopy) {
             if (ch.username != null && ch.username.equals(targetUser)) {
                 ch.sendMessage(new Message("Hệ thống", "Bạn bị kick khỏi phòng bởi " + this.username, Message.Type.SYSTEM));
                 ch.joinRoom(1); // Trả về phòng mặc định
@@ -319,8 +343,22 @@ public class ClientHandler implements Runnable {
     private void broadcastToRoom(int roomId, Message msg) {
         List<ClientHandler> members = Server.getRoomGroups().get(roomId);
         if (members != null) {
-            for (ClientHandler ch : members) {
-                ch.sendMessage(msg);
+            // Copy danh sách để tránh ConcurrentModificationException
+            List<ClientHandler> membersCopy;
+            synchronized (members) {
+                membersCopy = new ArrayList<>(members);
+            }
+            
+            // Gửi tin nhắn cho từng client - đảm bảo mỗi client đều nhận được
+            for (ClientHandler ch : membersCopy) {
+                try {
+                    if (ch != null) {
+                        ch.sendMessage(msg);
+                    }
+                } catch (Exception e) {
+                    // Nếu 1 client lỗi, không làm crash server - tiếp tục gửi cho client khác
+                    gui.logError("Lỗi gửi tin nhắn cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
+                }
             }
         }
     }
@@ -328,20 +366,46 @@ public class ClientHandler implements Runnable {
     private void broadcastUserList(int roomId) {
         List<ClientHandler> members = Server.getRoomGroups().get(roomId);
         if (members != null) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < members.size(); i++) {
-                sb.append(members.get(i).username);
-                if (i < members.size() - 1) sb.append(",");
+            // Copy danh sách để tránh ConcurrentModificationException
+            List<ClientHandler> membersCopy;
+            synchronized (members) {
+                membersCopy = new ArrayList<>(members);
             }
+            
+            // Tạo danh sách usernames
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < membersCopy.size(); i++) {
+                ClientHandler ch = membersCopy.get(i);
+                if (ch != null && ch.username != null) {
+                    sb.append(ch.username);
+                    if (i < membersCopy.size() - 1) sb.append(",");
+                }
+            }
+            
+            gui.logSystem("[DEBUG] Broadcast user list for room " + roomId + ": " + sb.toString() + " (" + membersCopy.size() + " users)");
+            
             Message listMsg = new Message("Hệ thống", sb.toString(), Message.Type.USER_LIST);
-            for (ClientHandler ch : members) {
-                ch.sendMessage(listMsg);
+            
+            // Gửi danh sách user cập nhật cho từng client trong phòng
+            for (ClientHandler ch : membersCopy) {
+                try {
+                    if (ch != null) {
+                        ch.sendMessage(listMsg);
+                    }
+                } catch (Exception e) {
+                    gui.logError("Lỗi gửi danh sách user cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
+                }
             }
         }
     }
 
     public void sendMessage(Message msg) {
-        out.println(msg.toNetworkString());
+        try {
+            out.println(msg.toNetworkString());
+            out.flush();  // Đảm bảo tin nhắn được gửi ngay lập tức
+        } catch (Exception e) {
+            gui.logError("Lỗi gửi tin nhắn cho " + username + ": " + e.getMessage());
+        }
     }
 
     public String getUsername() { return username; }
@@ -368,9 +432,16 @@ public class ClientHandler implements Runnable {
 
     /** Broadcast lại danh sách phòng cho mọi client đang online */
     private void broadcastRoomListToAll() {
-        for (ClientHandler ch : new ArrayList<>(clients.values())) {
-            if (ch != null) {
-                ch.sendRoomListToClient();
+        // Copy danh sách clients để tránh ConcurrentModificationException
+        List<ClientHandler> clientsList = new ArrayList<>(clients.values());
+        
+        for (ClientHandler ch : clientsList) {
+            try {
+                if (ch != null) {
+                    ch.sendRoomListToClient();
+                }
+            } catch (Exception e) {
+                gui.logError("Lỗi gửi danh sách phòng cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
             }
         }
     }
