@@ -38,5 +38,44 @@
             <jvmarg value="-Dfile.encoding=UTF-8"/>
         </java>
     </target>
+       <!-- ══════════════════════════════════════════════════════════
+         TARGET: package-all (Đóng gói Client)
+    ══════════════════════════════════════════════════════════ -->
+    <target name="package-all" depends="jar" description="Tạo file JAR cho Client">
+        <property name="store.jar.name" value="AppChat"/>
+        <property name="store.dir" value="AppChat"/>
+        <property name="store.jar" value="${store.dir}/${store.jar.name}.jar"/>
+        
+        <echo message="Đang đóng gói Client..."/>
+        <mkdir dir="${store.dir}"/>
+        <jar destfile="${store.jar}" filesetmanifest="merge">
+            <manifest>
+                <attribute name="Main-Class" value="Chat.client.Main"/>
+            </manifest>
+            <zipfileset src="${dist.jar}"/>
+            <zipgroupfileset dir="lib" includes="*.jar"/>
+        </jar>
+        <echo message="Xong! Client tại: ${store.jar}"/>
+    </target>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TARGET: package-server (Đóng gói Server)
+    ══════════════════════════════════════════════════════════ -->
+    <target name="package-server" depends="jar" description="Tạo file JAR cho Server">
+        <property name="server.jar.name" value="AppServer"/>
+        <property name="store.dir" value="AppChat"/>
+        <property name="server.jar" value="${store.dir}/${server.jar.name}.jar"/>
+        
+        <echo message="Đang đóng gói Server..."/>
+        <mkdir dir="${store.dir}"/>
+        <jar destfile="${server.jar}" filesetmanifest="merge">
+            <manifest>
+                <attribute name="Main-Class" value="Chat.server.Main"/>
+            </manifest>
+            <zipfileset src="${dist.jar}"/>
+            <zipgroupfileset dir="lib" includes="*.jar"/>
+        </jar>
+        <echo message="Xong! Server tại: ${server.jar}"/>
+    </target>
 
 </project>

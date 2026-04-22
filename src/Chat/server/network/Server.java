@@ -88,7 +88,7 @@ public class Server {
         new Thread(() -> {
             try (ServerSocket serverSocket = new ServerSocket(PORT, 50, InetAddress.getByName("0.0.0.0"))) {
                 gui.setServerStatus(true, PORT);
-                String localIP = InetAddress.getLocalHost().getHostAddress();
+                String localIP = "159.65.134.130"; // IP VPS của bạn
                 gui.logSystem("Server đã sẵn sàng! Địa chỉ: " + localIP + ":" + PORT);
 
                 // Thread kiểm tra user bị kick từ DB (Do ServerGUI thực hiện từ xa)
