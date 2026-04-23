@@ -205,59 +205,117 @@ public class ChatFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(COLOR_BG_SIDEBAR);
 
+        // ── Header: chi co tieu de ──
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(COLOR_BG_SIDEBAR);
         header.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_SIDEBAR_DIVIDER),
-            BorderFactory.createEmptyBorder(7, 16, 7, 8)));
-
+            BorderFactory.createEmptyBorder(12, 16, 12, 16)));
         JLabel title = new JLabel("Phong Chat");
         title.setFont(FONT_SIDEBAR_TITLE);
         title.setForeground(COLOR_TEXT_DARK);
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
-        btnRow.setOpaque(false);
-
-        // Nut tim kiem phong theo ma
-        JButton searchBtn = new JButton("Tim phong");
-        searchBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        searchBtn.setPreferredSize(new Dimension(68, 24));
-        searchBtn.setFocusPainted(false);
-        searchBtn.setBackground(new Color(0xE4E6EB));
-        searchBtn.setForeground(COLOR_TEXT_DARK);
-        searchBtn.setBorder(BorderFactory.createLineBorder(new Color(0xCCCCCC)));
-        searchBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        searchBtn.setToolTipText("Tim phong theo ma 5 ky tu");
-        searchBtn.addActionListener(e -> showSearchRoomDialog());
-
-        // Nut tao phong moi
-        JButton createBtn = new JButton("+ Tao");
-        createBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        createBtn.setPreferredSize(new Dimension(56, 24));
-        createBtn.setFocusPainted(false);
-        createBtn.setBackground(COLOR_ACCENT);
-        createBtn.setForeground(Color.WHITE);
-        createBtn.setBorder(BorderFactory.createLineBorder(new Color(0x0066CC)));
-        createBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        createBtn.setToolTipText("Tao phong moi");
-        createBtn.addActionListener(e -> showCreateRoomDialog());
-
-        btnRow.add(searchBtn);
-        btnRow.add(createBtn);
         header.add(title, BorderLayout.WEST);
-        header.add(btnRow, BorderLayout.EAST);
 
+        // ── Danh sach phong (giua) ──
         roomListPanel = new JPanel();
         roomListPanel.setLayout(new BoxLayout(roomListPanel, BoxLayout.Y_AXIS));
         roomListPanel.setBackground(COLOR_BG_SIDEBAR);
-
         JScrollPane scroll = new JScrollPane(roomListPanel);
         scroll.setBorder(null);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
 
+        // ── Footer: o tim kiem + nut Tao phong ──
+        JPanel footer = new JPanel(new BorderLayout(6, 0));
+        footer.setBackground(COLOR_BG_SIDEBAR);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, COLOR_SIDEBAR_DIVIDER),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+
+        // O tim kiem co kieu search bar
+        JPanel searchBox = new JPanel(new BorderLayout(4, 0));
+        searchBox.setBackground(new Color(0xEAEBED));
+        searchBox.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0xCCD0D5), 1),
+            BorderFactory.createEmptyBorder(5, 8, 5, 8)));
+
+        JLabel searchIcon = new JLabel("Q");
+        searchIcon.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        searchIcon.setForeground(new Color(0x65676B));
+
+        JTextField searchField = new JTextField();
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        searchField.setBorder(null);
+        searchField.setBackground(new Color(0xEAEBED));
+        searchField.setForeground(new Color(0x65676B));
+        searchField.setText("Tim phong bang ma...");
+        searchField.setForeground(new Color(0x999999));
+
+        // Xoa placeholder khi focus
+        searchField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override public void focusGained(java.awt.event.FocusEvent e) {
+                if (searchField.getText().equals("Tim phong bang ma...")) {
+                    searchField.setText("");
+                    searchField.setForeground(COLOR_TEXT_DARK);
+                }
+            }
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                if (searchField.getText().isEmpty()) {
+                    searchField.setText("Tim phong bang ma...");
+                    searchField.setForeground(new Color(0x999999));
+                }
+            }
+        });
+
+        // Nhan Enter de tim
+        searchField.addActionListener(e -> {
+            String code = searchField.getText().trim().toUpperCase();
+            if (code.length() == 5 && frameListener != null) {
+                frameListener.onSearchRoomCode(code);
+            } else if (!code.isEmpty() && !code.equals("TIM PHONG BANG MA...")) {
+                addSystemMessage("Ma phong phai co dung 5 ky tu (VD: AB12C)");
+            }
+        });
+
+        searchBox.add(searchIcon, BorderLayout.WEST);
+        searchBox.add(searchField, BorderLayout.CENTER);
+
+        // Nut Tao phong - full width, co mau nen ro rang
+        JButton createBtn = new JButton("+ Tao phong moi") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isPressed() ? new Color(0x0066CC)
+                          : getModel().isRollover() ? new Color(0x0078FF)
+                          : COLOR_ACCENT);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        createBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        createBtn.setForeground(Color.WHITE);
+        createBtn.setOpaque(false);
+        createBtn.setContentAreaFilled(false);
+        createBtn.setBorderPainted(false);
+        createBtn.setFocusPainted(false);
+        createBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        createBtn.setPreferredSize(new Dimension(0, 36));
+        createBtn.addActionListener(e -> showCreateRoomDialog());
+
+        footer.add(searchBox,  BorderLayout.CENTER);
+        footer.add(createBtn,  BorderLayout.SOUTH);
+        // Them khoang cach giua 2 phan tu
+        JPanel footerInner = new JPanel(new BorderLayout(0, 6));
+        footerInner.setOpaque(false);
+        footerInner.add(searchBox, BorderLayout.NORTH);
+        footerInner.add(createBtn, BorderLayout.SOUTH);
+        footer.removeAll();
+        footer.add(footerInner, BorderLayout.CENTER);
+
         panel.add(header, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
+        panel.add(footer, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -268,7 +326,7 @@ public class ChatFrame extends JFrame {
         JTextField nameField = new JTextField("Phong cua toi", 16);
         JSpinner limitSpin = new JSpinner(new SpinnerNumberModel(20, 2, 200, 1));
         p.add(new JLabel("Ten phong:")); p.add(nameField);
-        p.add(new JLabel("Gioi han:")); p.add(limitSpin);
+        p.add(new JLabel("Gioi han nguoi:")); p.add(limitSpin);
         int r = JOptionPane.showConfirmDialog(this, p, "Tao phong moi",
             JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (r == JOptionPane.OK_OPTION && frameListener != null) {
@@ -292,6 +350,7 @@ public class ChatFrame extends JFrame {
             else addSystemMessage("Ma phong phai co dung 5 ky tu!");
         }
     }
+
 
     /** Panel danh sách thành viên (phần dưới sidebar) */
     private JPanel createMembersSection() {
