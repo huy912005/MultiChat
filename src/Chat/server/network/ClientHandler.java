@@ -301,16 +301,18 @@ public class ClientHandler implements Runnable {
     }
 
     private void loadRoomHistory(int roomId) {
-        String sql = "SELECT u.tenUser, m.noiDung, DATE_FORMAT(m.thoiGian, '%d/%m %H:%i') as thoiGian FROM Message m " +
-                     "JOIN User u ON m.maUser = u.maUser " +
-                     "WHERE m.maRoom = ? ORDER BY m.thoiGian ASC LIMIT 50";
+        String sql = "SELECT * FROM ( " +
+                     "  SELECT u.tenUser, m.noiDung, DATE_FORMAT(m.thoiGian, '%d/%m %H:%i') as thoiGianStr, m.thoiGian " +
+                     "  FROM Message m JOIN User u ON m.maUser = u.maUser " +
+                     "  WHERE m.maRoom = ? ORDER BY m.thoiGian DESC LIMIT 50 " +
+                     ") AS sub ORDER BY thoiGian ASC";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, roomId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Message oldMsg = new Message(rs.getString("tenUser"), rs.getString("noiDung"));
-                oldMsg.setTimestamp(rs.getString("thoiGian"));
+                oldMsg.setTimestamp(rs.getString("thoiGianStr"));
                 sendMessage(oldMsg);
             }
         } catch (Exception e) {
@@ -506,8 +508,9 @@ public class ClientHandler implements Runnable {
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) myUserId = rs.getInt(1);
             }
-            if (ownerUserId == -1 || (ownerUserId != myUserId && ownerUserId != 0)) {
-                sendMessage(new Message("System", "Ban khong co quyen xoa phong nay!", Message.Type.SYSTEM));
+            // Chỉ chủ phòng thực sự mới được xoá (loại trừ luôn phòng public không chủ nếu ai đó cố xoá)
+            if (ownerUserId == -1 || ownerUserId != myUserId) {
+                sendMessage(new Message("System", "Ban khong co quyen xoa phong nay (chi chu phong moi duoc xoa)!", Message.Type.SYSTEM));
                 return;
             }
             // Kick moi nguoi ra phong 1 truoc
@@ -678,15 +681,21 @@ public class ClientHandler implements Runnable {
 
     /** Gửi danh sách tất cả phòng cho client này */
     private void sendRoomListToClient() {
-        String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room ORDER BY maRoom";
+        // Chỉ gửi phòng công khai (không có mã) HOẶC phòng riêng mà người dùng này tạo ra
+        String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room " +
+                     "WHERE roomCode IS NULL OR roomCode = '' " +
+                     "   OR maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1) " +
+                     "ORDER BY maRoom";
         StringBuilder sb = new StringBuilder();
         try (Connection conn = DBContext.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                if (sb.length() > 0) sb.append(",");
-                sb.append(rs.getInt(1)).append(":").append(rs.getString(2)).append(":")
-                  .append(rs.getInt(3)).append(":").append(rs.getInt(4));
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (sb.length() > 0) sb.append(",");
+                    sb.append(rs.getInt(1)).append(":").append(rs.getString(2)).append(":")
+                      .append(rs.getInt(3)).append(":").append(rs.getInt(4));
+                }
             }
         } catch (Exception e) {
             gui.logError("DB Error (sendRoomList): " + e.getMessage());
