@@ -310,7 +310,7 @@ public class ClientHandler implements Runnable {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Message oldMsg = new Message(rs.getString("tenUser"), rs.getString("noiDung"));
-                oldMsg.timestamp = rs.getString("thoiGian");
+                oldMsg.setTimestamp(rs.getString("thoiGian"));
                 sendMessage(oldMsg);
             }
         } catch (Exception e) {
@@ -320,7 +320,7 @@ public class ClientHandler implements Runnable {
 
     // --- XỬ LÝ LOGIC PHÒNG ---
 
-    private void joinRoom(int roomId) {
+    void joinRoom(int roomId) {
         if (roomId <= 0) {
             sendMessage(new Message("Hệ thống", "Phòng không hợp lệ.", Message.Type.SYSTEM));
             return;

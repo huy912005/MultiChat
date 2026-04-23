@@ -35,7 +35,7 @@ public class Message implements Serializable {
     private String sender;    // Tên người gửi
     private String content;   // Nội dung tin nhắn
     private Type type;        // Loại tin nhắn
-    String timestamp; // Thoi gian gui (package-private de ClientHandler co the set khi load history)
+    private String timestamp; // Thoi gian gui
 
     // Constructor đầy đủ
     public Message(String sender, String content, Type type) {
@@ -75,6 +75,10 @@ public class Message implements Serializable {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
     }
 
     public void setType(Type type) {
