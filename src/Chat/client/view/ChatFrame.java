@@ -977,6 +977,7 @@ public class ChatFrame extends JFrame {
         JPanel card = new JPanel();
         card.setLayout(new BorderLayout(0, 0));
         card.setBackground(Color.WHITE);
+        card.setPreferredSize(new Dimension(320, 420));
         card.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(0xDDDEE0), 1),
             BorderFactory.createEmptyBorder(0, 0, 0, 0)
@@ -985,7 +986,7 @@ public class ChatFrame extends JFrame {
         // ── Header xanh ──
         JPanel headerPanel = new JPanel(new GridBagLayout());
         headerPanel.setBackground(COLOR_ACCENT);
-        headerPanel.setPreferredSize(new Dimension(400, 80));
+        headerPanel.setPreferredSize(new Dimension(320, 70));
 
         JLabel appTitle = new JLabel("Chat App");
         appTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));

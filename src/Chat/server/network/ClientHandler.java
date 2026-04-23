@@ -296,7 +296,19 @@ public class ClientHandler implements Runnable {
             ps.setInt(3, roomId);
             ps.executeUpdate();
         } catch (Exception e) {
-            gui.logError("DB Error (saveMsg): " + e.getMessage());
+            // FALLBACK: Thử bỏ cột trangThai nếu DB cũ không chấp nhận 'SENT'
+            try {
+                String fallback = "INSERT INTO Message (noiDung, maUser, maRoom, thoiGian) VALUES (?, (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1), ?, NOW())";
+                try (Connection conn2 = DBContext.getConnection();
+                     PreparedStatement ps2 = conn2.prepareStatement(fallback)) {
+                    ps2.setString(1, msg.getContent());
+                    ps2.setString(2, msg.getSender());
+                    ps2.setInt(3, roomId);
+                    ps2.executeUpdate();
+                }
+            } catch (Exception ex) {
+                gui.logError("DB Error (saveMsg Fallback): " + ex.getMessage());
+            }
         }
     }
 
@@ -700,7 +712,20 @@ public class ClientHandler implements Runnable {
                 }
             }
         } catch (Exception e) {
-            gui.logError("DB Error (sendRoomList): " + e.getMessage());
+            // FALLBACK: Neu chua chay migrate_db.sql tren server (thieu cot roomCode)
+            gui.logSystem("DB thieu cot roomCode, dung fallback cho room list.");
+            String fallbackSql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room ORDER BY maRoom";
+            try (Connection conn = DBContext.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(fallbackSql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (sb.length() > 0) sb.append(",");
+                    sb.append(rs.getInt(1)).append(":").append(rs.getString(2)).append(":")
+                      .append(rs.getInt(3)).append(":").append(rs.getInt(4));
+                }
+            } catch (Exception ex) {
+                gui.logError("DB Error (sendRoomList Fallback): " + ex.getMessage());
+            }
         }
         if (sb.length() > 0) {
             sendMessage(new Message("Hệ thống", sb.toString(), Message.Type.ROOM_LIST));
