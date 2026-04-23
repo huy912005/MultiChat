@@ -681,15 +681,17 @@ public class ClientHandler implements Runnable {
 
     /** Gửi danh sách tất cả phòng cho client này */
     private void sendRoomListToClient() {
-        // Chỉ gửi phòng công khai (không có mã) HOẶC phòng riêng mà người dùng này tạo ra
+        // Chỉ gửi phòng công khai (không có mã) HOẶC phòng riêng mà người dùng này tạo ra HOẶC phòng riêng mà người dùng này đã tham gia
         String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room " +
                      "WHERE roomCode IS NULL OR roomCode = '' " +
                      "   OR maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1) " +
+                     "   OR maRoom IN (SELECT maRoom FROM UserRoom WHERE maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1)) " +
                      "ORDER BY maRoom";
         StringBuilder sb = new StringBuilder();
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
+            ps.setString(2, username);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     if (sb.length() > 0) sb.append(",");
