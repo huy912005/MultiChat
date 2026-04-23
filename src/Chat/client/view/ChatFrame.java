@@ -954,134 +954,211 @@ public class ChatFrame extends JFrame {
     }
 
     /**
-     * Hien thi dialog dang nhap / dang ky dep hon
+     * Hien thi dialog dang nhap / dang ky chuyen nghiep
      */
     public AuthRequest showLoginDialog() {
-        // State
         final boolean[] registerMode = {false};
-        final AuthRequest[] result = {null};
+        final AuthRequest[] result    = {null};
 
-        JDialog dlg = new JDialog(this, "Chat App - Xac Thuc", true);
-        dlg.setSize(380, 420);
+        // ── Tao dialog ──
+        JDialog dlg = new JDialog(this, "Chat App", true);
+        dlg.setUndecorated(false);
+        dlg.setSize(400, 500);
+        dlg.setResizable(false);
         dlg.setLocationRelativeTo(this);
-        dlg.setLayout(new BorderLayout());
-        dlg.getRootPane().setBorder(BorderFactory.createEmptyBorder(24, 30, 24, 30));
+        dlg.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-        JPanel main = new JPanel();
-        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
-        main.setBackground(Color.WHITE);
-        main.setBorder(BorderFactory.createEmptyBorder(24, 30, 20, 30));
+        // ── Root panel: nen xam nhat ──
+        JPanel root = new JPanel(new GridBagLayout());
+        root.setBackground(new Color(0xF0F2F5));
+        dlg.setContentPane(root);
 
-        // Title
-        JLabel icon = new JLabel("Chat App");
-        icon.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        icon.setForeground(COLOR_ACCENT);
-        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // ── Card trang chinh giua ──
+        JPanel card = new JPanel();
+        card.setLayout(new BorderLayout(0, 0));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0xDDDEE0), 1),
+            BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        ));
 
+        // ── Header xanh ──
+        JPanel headerPanel = new JPanel(new GridBagLayout());
+        headerPanel.setBackground(COLOR_ACCENT);
+        headerPanel.setPreferredSize(new Dimension(400, 80));
+
+        JLabel appTitle = new JLabel("Chat App");
+        appTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        appTitle.setForeground(Color.WHITE);
+        headerPanel.add(appTitle);
+
+        // ── Body form ──
+        JPanel body = new JPanel();
+        body.setLayout(new GridBagLayout());
+        body.setBackground(Color.WHITE);
+        body.setBorder(BorderFactory.createEmptyBorder(28, 32, 24, 32));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill      = GridBagConstraints.HORIZONTAL;
+        gbc.weightx   = 1.0;
+        gbc.gridx     = 0;
+        gbc.insets    = new Insets(0, 0, 0, 0);
+
+        // Mode title
         JLabel modeLbl = new JLabel("Dang Nhap");
-        modeLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        modeLbl.setForeground(COLOR_TEXT_DARK);
-        modeLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        modeLbl.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        modeLbl.setForeground(new Color(0x1C1E21));
+        modeLbl.setHorizontalAlignment(SwingConstants.CENTER);
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 20, 0);
+        body.add(modeLbl, gbc);
 
-        // Fields
+        // Label: Ten tai khoan
+        JLabel userLbl = new JLabel("Ten tai khoan");
+        userLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        userLbl.setForeground(new Color(0x606770));
+        gbc.gridy  = 1;
+        gbc.insets = new Insets(0, 0, 4, 0);
+        body.add(userLbl, gbc);
+
+        // Input: Ten tai khoan
         JTextField userFld = new JTextField();
-        userFld.setFont(FONT_INPUT);
-        userFld.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        userFld.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        userFld.setPreferredSize(new Dimension(0, 42));
         userFld.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(0xCCCCCC), 1),
-            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+            BorderFactory.createLineBorder(new Color(0xCCD0D5), 1),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
+        userFld.setBackground(new Color(0xF5F6F7));
+        gbc.gridy  = 2;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        body.add(userFld, gbc);
 
+        // Label: Mat khau
+        JLabel passLbl = new JLabel("Mat khau");
+        passLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        passLbl.setForeground(new Color(0x606770));
+        gbc.gridy  = 3;
+        gbc.insets = new Insets(0, 0, 4, 0);
+        body.add(passLbl, gbc);
+
+        // Input: Mat khau
         JPasswordField passFld = new JPasswordField();
-        passFld.setFont(FONT_INPUT);
-        passFld.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        passFld.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        passFld.setPreferredSize(new Dimension(0, 42));
         passFld.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(0xCCCCCC), 1),
-            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+            BorderFactory.createLineBorder(new Color(0xCCD0D5), 1),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
+        passFld.setBackground(new Color(0xF5F6F7));
+        gbc.gridy  = 4;
+        gbc.insets = new Insets(0, 0, 24, 0);
+        body.add(passFld, gbc);
 
-        // Submit button
-        JButton submitBtn = new JButton("DANG NHAP");
-        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        // Nut submit
+        JButton submitBtn = new JButton("DANG NHAP") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color bg = getModel().isPressed()  ? new Color(0x0050B3)
+                         : getModel().isRollover() ? new Color(0x0066CC)
+                         : COLOR_ACCENT;
+                g2.setColor(bg);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 15));
         submitBtn.setForeground(Color.WHITE);
-        submitBtn.setBackground(COLOR_ACCENT);
+        submitBtn.setOpaque(false);
+        submitBtn.setContentAreaFilled(false);
         submitBtn.setBorderPainted(false);
         submitBtn.setFocusPainted(false);
-        submitBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        submitBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         submitBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        submitBtn.setPreferredSize(new Dimension(0, 46));
+        gbc.gridy  = 5;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        body.add(submitBtn, gbc);
 
-        // Toggle link
-        JLabel toggleLbl = new JLabel("<html>Chua co tai khoan? <font color='#0084FF'><u>Dang Ky ngay</u></font></html>");
+        // Duong ke ngang
+        JSeparator sep = new JSeparator();
+        sep.setForeground(new Color(0xDDDEE0));
+        gbc.gridy  = 6;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        body.add(sep, gbc);
+
+        // Link chuyen doi mode
+        JLabel toggleLbl = new JLabel(
+            "<html><div style='text-align:center'>Chua co tai khoan? " +
+            "<span style='color:#0084FF'><u>Dang ky ngay</u></span></div></html>");
         toggleLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        toggleLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        toggleLbl.setHorizontalAlignment(SwingConstants.CENTER);
         toggleLbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        gbc.gridy  = 7;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        body.add(toggleLbl, gbc);
 
-        // Toggle logic
+        // ── Toggle logic ──
         toggleLbl.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 registerMode[0] = !registerMode[0];
                 if (registerMode[0]) {
                     modeLbl.setText("Dang Ky Tai Khoan");
-                    submitBtn.setText("DANG KY");
-                    submitBtn.setBackground(new Color(0x00B894));
-                    toggleLbl.setText("<html>Da co tai khoan? <font color='#0084FF'><u>Dang Nhap</u></font></html>");
+                    submitBtn.setText("TAO TAI KHOAN");
+                    toggleLbl.setText("<html><div style='text-align:center'>Da co tai khoan? " +
+                        "<span style='color:#0084FF'><u>Dang nhap</u></span></div></html>");
                 } else {
                     modeLbl.setText("Dang Nhap");
                     submitBtn.setText("DANG NHAP");
-                    submitBtn.setBackground(COLOR_ACCENT);
-                    toggleLbl.setText("<html>Chua co tai khoan? <font color='#0084FF'><u>Dang Ky ngay</u></font></html>");
+                    toggleLbl.setText("<html><div style='text-align:center'>Chua co tai khoan? " +
+                        "<span style='color:#0084FF'><u>Dang ky ngay</u></span></div></html>");
                 }
             }
         });
 
-        // Submit action
+        // ── Submit logic ──
         java.awt.event.ActionListener doSubmit = ev -> {
             String u = userFld.getText().trim();
             String p = new String(passFld.getPassword());
-            if (!u.isEmpty() && !p.isEmpty()) {
-                result[0] = new AuthRequest(u, p, registerMode[0]);
-                dlg.dispose();
-            } else {
-                JOptionPane.showMessageDialog(dlg, "Vui long nhap day du thong tin!", "Loi", JOptionPane.WARNING_MESSAGE);
+            if (u.isEmpty() || p.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg,
+                    "Vui long nhap day du thong tin!", "Thieu thong tin",
+                    JOptionPane.WARNING_MESSAGE);
+                return;
             }
+            result[0] = new AuthRequest(u, p, registerMode[0]);
+            dlg.dispose();
         };
         submitBtn.addActionListener(doSubmit);
         passFld.addActionListener(doSubmit);
+        userFld.addActionListener(ev -> passFld.requestFocus());
 
-        JLabel userLbl = new JLabel("Ten tai khoan:");
-        userLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        userLbl.setForeground(COLOR_TEXT_DARK);
-        userLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // ── Hover: vien xanh khi focus vao input ──
+        java.awt.event.FocusAdapter inputFocus = new java.awt.event.FocusAdapter() {
+            @Override public void focusGained(java.awt.event.FocusEvent e) {
+                ((JComponent) e.getSource()).setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(COLOR_ACCENT, 2),
+                    BorderFactory.createEmptyBorder(7, 11, 7, 11)));
+            }
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                ((JComponent) e.getSource()).setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(0xCCD0D5), 1),
+                    BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+            }
+        };
+        userFld.addFocusListener(inputFocus);
+        passFld.addFocusListener(inputFocus);
 
-        JLabel passLbl = new JLabel("Mat khau:");
-        passLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        passLbl.setForeground(COLOR_TEXT_DARK);
-        passLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // ── Ghep card va hien thi ──
+        card.add(headerPanel, BorderLayout.NORTH);
+        card.add(body,        BorderLayout.CENTER);
+        root.add(card);
 
-        userFld.setAlignmentX(Component.LEFT_ALIGNMENT);
-        passFld.setAlignmentX(Component.LEFT_ALIGNMENT);
-        submitBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        toggleLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        main.add(icon);
-        main.add(Box.createVerticalStrut(6));
-        main.add(modeLbl);
-        main.add(Box.createVerticalStrut(16));
-        main.add(userLbl);
-        main.add(Box.createVerticalStrut(4));
-        main.add(userFld);
-        main.add(Box.createVerticalStrut(12));
-        main.add(passLbl);
-        main.add(Box.createVerticalStrut(4));
-        main.add(passFld);
-        main.add(Box.createVerticalStrut(16));
-        main.add(submitBtn);
-        main.add(Box.createVerticalStrut(12));
-        main.add(toggleLbl);
-
-        dlg.add(main, BorderLayout.CENTER);
-        dlg.setVisible(true); // blocks until disposed
+        dlg.setVisible(true);
         return result[0];
     }
+
 
     /**
      * Hiển thị thông báo lỗi
