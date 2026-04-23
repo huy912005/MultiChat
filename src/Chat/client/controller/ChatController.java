@@ -99,17 +99,28 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
         network.sendMessage(msg);
     }
     
-    /**
-     * Được gọi khi người dùng bấm chọn một phòng trong sidebar
-     */
     @Override
     public void onJoinRoom(int roomId) {
-        if (!network.isConnected()) {
-            view.showError("Không có kết nối tới server!");
-            return;
-        }
-        Message msg = new Message(username, String.valueOf(roomId), Message.Type.JOIN_ROOM);
-        network.sendMessage(msg);
+        if (!network.isConnected()) { view.showError("Khong co ket noi!"); return; }
+        network.sendMessage(new Message(username, String.valueOf(roomId), Message.Type.JOIN_ROOM));
+    }
+
+    @Override
+    public void onCreateRoom(String name, int limit) {
+        if (!network.isConnected()) { view.showError("Khong co ket noi!"); return; }
+        network.sendMessage(new Message(username, name + "|" + limit, Message.Type.CREATE_ROOM));
+    }
+
+    @Override
+    public void onDeleteRoom(int roomId) {
+        if (!network.isConnected()) { view.showError("Khong co ket noi!"); return; }
+        network.sendMessage(new Message(username, String.valueOf(roomId), Message.Type.DELETE_ROOM));
+    }
+
+    @Override
+    public void onSearchRoomCode(String code) {
+        if (!network.isConnected()) { view.showError("Khong co ket noi!"); return; }
+        network.sendMessage(new Message(username, code, Message.Type.ROOM_CODE_SEARCH));
     }
 
     /**
@@ -198,7 +209,18 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                         String[] parts = entry.split(":", 4);
                         if (parts.length == 4) rooms.add(parts);
                     }
-                    view.updateRoomList(rooms);
+                    if (rooms.size() == 1) {
+                        // Ket qua tim kiem phong don le - hoi co muon vao khong
+                        String[] r = rooms.get(0);
+                        int choice = javax.swing.JOptionPane.showConfirmDialog(null,
+                            "Tim thay phong: " + r[1] + " (" + r[2] + "/" + r[3] + " nguoi)\nBan co muon vao phong nay?",
+                            "Ket qua tim kiem", javax.swing.JOptionPane.YES_NO_OPTION);
+                        if (choice == javax.swing.JOptionPane.YES_OPTION) {
+                            try { onJoinRoom(Integer.parseInt(r[0])); } catch (Exception ignored) {}
+                        }
+                    } else {
+                        view.updateRoomList(rooms);
+                    }
                 }
                 break;
 

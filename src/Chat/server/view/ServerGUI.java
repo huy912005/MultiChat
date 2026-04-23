@@ -543,8 +543,6 @@ public class ServerGUI extends JFrame implements ServerLogger {
 
     /** Dialog tạo phòng mới */
     private void showCreateRoomDialog() {
-        if (server == null) return;
-
         JTextField txtName  = createDialogField("Phòng Mới");
         JSpinner   spinLimit = new JSpinner(new SpinnerNumberModel(50, 2, 500, 1));
         styleSpinner(spinLimit);
@@ -552,26 +550,39 @@ public class ServerGUI extends JFrame implements ServerLogger {
         JPanel panel = buildDialogPanel(txtName, spinLimit);
 
         int result = JOptionPane.showConfirmDialog(this, panel,
-                "✚  Tạo Phòng Mới", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+                "Tao Phong Moi", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
         if (result == JOptionPane.OK_OPTION) {
             String name = txtName.getText().trim();
             int    limit = (int) spinLimit.getValue();
             if (!name.isEmpty()) {
-                if (server.createRoom(name, limit)) refreshRoomTable();
-                else showError("Tạo phòng thất bại! Xem log để biết thêm.");
+                // Ưu tiên dùng local server, nếu không có thì gửi qua TCP
+                if (server != null) {
+                    if (server.createRoom(name, limit)) refreshRoomTable();
+                    else showError("Tao phong that bai! Xem log de biet them.");
+                } else if (adminOut != null) {
+                    // Gửi lệnh tạo phòng qua TCP đến cloud server
+                    Chat.server.model.Message cmd = new Chat.server.model.Message(
+                        "ADMIN", name + "|" + limit,
+                        Chat.server.model.Message.Type.ADMIN_CREATE_ROOM);
+                    adminOut.println(cmd.toNetworkString());
+                    logSystem("[CLOUD] Da gui lenh tao phong: " + name);
+                    // Làm mới bảng sau 1 giây
+                    new javax.swing.Timer(1000, e -> refreshRoomTable()).start();
+                } else {
+                    showError("Chua ket noi den server!");
+                }
             }
         }
     }
 
     /** Dialog sửa phòng đang chọn trong bảng */
     private void showEditRoomDialog() {
-        if (server == null) return;
         int row = roomTable.getSelectedRow();
         if (row < 0) {
             JOptionPane.showMessageDialog(this,
-                    "Vui lòng chọn một phòng trong bảng để sửa!",
-                    "Chưa chọn phòng", JOptionPane.WARNING_MESSAGE);
+                    "Vui long chon mot phong trong bang de sua!",
+                    "Chua chon phong", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -586,15 +597,27 @@ public class ServerGUI extends JFrame implements ServerLogger {
         JPanel panel = buildDialogPanel(txtName, spinLimit);
 
         int result = JOptionPane.showConfirmDialog(this, panel,
-                "✏  Sửa Phòng  [ID = " + roomId + "]",
+                "Sua Phong [ID = " + roomId + "]",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
         if (result == JOptionPane.OK_OPTION) {
             String name  = txtName.getText().trim();
             int    limit = (int) spinLimit.getValue();
             if (!name.isEmpty()) {
-                if (server.editRoom(roomId, name, limit)) refreshRoomTable();
-                else showError("Sửa phòng thất bại! Xem log để biết thêm.");
+                if (server != null) {
+                    if (server.editRoom(roomId, name, limit)) refreshRoomTable();
+                    else showError("Sua phong that bai! Xem log de biet them.");
+                } else if (adminOut != null) {
+                    // Gửi lệnh sửa phòng qua TCP đến cloud server
+                    Chat.server.model.Message cmd = new Chat.server.model.Message(
+                        "ADMIN", roomId + "|" + name + "|" + limit,
+                        Chat.server.model.Message.Type.ADMIN_EDIT_ROOM);
+                    adminOut.println(cmd.toNetworkString());
+                    logSystem("[CLOUD] Da gui lenh sua phong ID=" + roomId + " -> " + name);
+                    new javax.swing.Timer(1000, e -> refreshRoomTable()).start();
+                } else {
+                    showError("Chua ket noi den server!");
+                }
             }
         }
     }

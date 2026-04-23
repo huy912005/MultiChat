@@ -64,28 +64,41 @@ public class ClientHandler implements Runnable {
 
                 if ("ADMIN_LOGIN".equals(action)) {
                     Server.registerAdmin(this);
-                    gui.logSystem("Admin GUI đã kết nối từ " + socket.getInetAddress().getHostAddress());
-                    sendMessage(new Message("SYS", "Đã kết nối luồng Log Cloud.", Message.Type.ADMIN_LOG));
-                    
+                    gui.logSystem("Admin GUI da ket noi tu " + socket.getInetAddress().getHostAddress());
+                    sendMessage(new Message("SYS", "Da ket noi luong Log Cloud.", Message.Type.ADMIN_LOG));
+
                     // Admin process loop
                     String line;
                     while ((line = in.readLine()) != null) {
                         try {
                             Message msg = Message.fromNetworkString(line);
-                            if (msg != null && msg.getType() == Message.Type.ADMIN_KICK) {
+                            if (msg == null) continue;
+                            if (msg.getType() == Message.Type.ADMIN_KICK) {
                                 String targetUser = msg.getContent();
                                 ClientHandler ch = clients.get(targetUser);
                                 if (ch != null) {
                                     ch.kickByAdmin();
-                                    Server.broadcastToAdmins(new Message("SYS", "Đã kick thành công: " + targetUser, Message.Type.ADMIN_LOG));
+                                    Server.broadcastToAdmins(new Message("SYS", "Da kick: " + targetUser, Message.Type.ADMIN_LOG));
                                 } else {
-                                    sendMessage(new Message("ERROR", "User " + targetUser + " không online", Message.Type.ADMIN_LOG));
+                                    sendMessage(new Message("ERROR", "User " + targetUser + " khong online", Message.Type.ADMIN_LOG));
+                                }
+                            } else if (msg.getType() == Message.Type.ADMIN_CREATE_ROOM) {
+                                // content = "tenRoom|gioiHan"
+                                String[] p = msg.getContent().split("\\|", 2);
+                                if (p.length == 2) {
+                                    adminCreateRoom(p[0].trim(), Integer.parseInt(p[1].trim()));
+                                }
+                            } else if (msg.getType() == Message.Type.ADMIN_EDIT_ROOM) {
+                                // content = "roomId|tenRoom|gioiHan"
+                                String[] p = msg.getContent().split("\\|", 3);
+                                if (p.length == 3) {
+                                    adminEditRoom(Integer.parseInt(p[0].trim()), p[1].trim(), Integer.parseInt(p[2].trim()));
                                 }
                             }
-                        } catch (Exception e) {}
+                        } catch (Exception e) { gui.logError("Admin cmd error: " + e.getMessage()); }
                     }
                     Server.removeAdmin(this);
-                    return; // exit when admin disconnects
+                    return;
                 }
 
                 clients.put(username, this);
@@ -133,23 +146,34 @@ public class ClientHandler implements Runnable {
     private void handleProtocol(Message msg) {
         switch (msg.getType()) {
             case CHAT:
-                // Lưu vào DB trước khi gửi đi
                 saveMessageToDB(msg, currentRoomId);
                 broadcastToRoom(currentRoomId, msg);
-                
-                // ✅ LOG CHI TIẾT VỀ TIN NHẮN
                 gui.logMessageDetail(msg.getSender(), String.valueOf(currentRoomId), msg.getContent());
                 gui.logChat(msg.getSender(), "(" + currentRoomId + "): " + msg.getContent());
                 Server.broadcastToAdmins(new Message("CHAT", "[" + msg.getSender() + "] (" + currentRoomId + "): " + msg.getContent(), Message.Type.ADMIN_LOG));
                 break;
 
             case JOIN_ROOM:
-                int targetRoomId = Integer.parseInt(msg.getContent());
-                joinRoom(targetRoomId);
+                try {
+                    int targetRoomId = Integer.parseInt(msg.getContent());
+                    joinRoom(targetRoomId);
+                } catch (NumberFormatException e) {
+                    // Nen la room code 5 ky tu
+                    joinRoomByCode(msg.getContent().trim());
+                }
                 break;
 
             case CREATE_ROOM:
+                // content = "roomName" or "roomName|limit"
                 handleCreateRoom(msg.getContent());
+                break;
+
+            case DELETE_ROOM:
+                handleDeleteRoom(msg.getContent());
+                break;
+
+            case ROOM_CODE_SEARCH:
+                handleRoomCodeSearch(msg.getContent());
                 break;
 
             case KICK:
@@ -157,7 +181,7 @@ public class ClientHandler implements Runnable {
                 break;
 
             case LEAVE_ROOM:
-                joinRoom(1); // Quay về phòng chờ chung
+                joinRoom(1);
                 break;
         }
     }
@@ -242,8 +266,8 @@ public class ClientHandler implements Runnable {
     }
 
     private void saveMessageToDB(Message msg, int roomId) {
-        String sql = "INSERT INTO Message (noiDung, maUser, maRoom, thoiGian) " +
-                     "VALUES (?, (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1), ?, NOW())";
+        String sql = "INSERT INTO Message (noiDung, maUser, maRoom, thoiGian, trangThai) " +
+                     "VALUES (?, (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1), ?, NOW(), 'SENT')";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, msg.getContent());
@@ -345,23 +369,202 @@ public class ClientHandler implements Runnable {
         gui.updateOnlineUserCount();
     }
 
-    private void handleCreateRoom(String roomName) {
-        // Chỉ dùng tenRoom và gioiHan (mặc định 50) — đúng schema bảng Room
-        String sql = "INSERT INTO Room (tenRoom, gioiHan) VALUES (?, 50)";
+    private void handleCreateRoom(String content) {
+        // content co the la "roomName" hoac "roomName|limit"
+        String roomName;
+        int limit = 50;
+        if (content.contains("|")) {
+            String[] p = content.split("\\|", 2);
+            roomName = p[0].trim();
+            try { limit = Integer.parseInt(p[1].trim()); } catch (Exception ignored) {}
+        } else {
+            roomName = content.trim();
+        }
+        // Tao ma phong 5 ky tu duy nhat
+        String roomCode = generateRoomCode();
+        String sql = "INSERT INTO Room (tenRoom, gioiHan, maUser, roomCode) VALUES (?, ?, (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1), ?)";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, roomName);
+            ps.setInt(2, limit);
+            ps.setString(3, username);
+            ps.setString(4, roomCode);
             ps.executeUpdate();
-
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int newId = rs.getInt(1);
-                sendMessage(new Message("Hệ thống", "Đã tạo phòng " + roomName + " thành công!", Message.Type.SYSTEM));
+                // Gui thong bao cho user biet ma phong
+                sendMessage(new Message("System", "ROOM_CODE:" + roomCode, Message.Type.SYSTEM));
+                sendMessage(new Message("System", "Da tao phong " + roomName + " (Ma: " + roomCode + ")", Message.Type.SYSTEM));
                 joinRoom(newId);
+                broadcastRoomListToAll();
             }
         } catch (Exception e) {
-            gui.logError("DB Error (createRoom): " + e.getMessage());
+            // Thu lai khong co cot roomCode/maUser neu DB cu
+            String sql2 = "INSERT INTO Room (tenRoom, gioiHan) VALUES (?, ?)";
+            try (Connection conn2 = DBContext.getConnection();
+                 PreparedStatement ps2 = conn2.prepareStatement(sql2, Statement.RETURN_GENERATED_KEYS)) {
+                ps2.setString(1, roomName);
+                ps2.setInt(2, limit);
+                ps2.executeUpdate();
+                ResultSet rs2 = ps2.getGeneratedKeys();
+                if (rs2.next()) {
+                    int newId = rs2.getInt(1);
+                    sendMessage(new Message("System", "Da tao phong " + roomName, Message.Type.SYSTEM));
+                    joinRoom(newId);
+                    broadcastRoomListToAll();
+                }
+            } catch (Exception e2) {
+                gui.logError("DB Error (createRoom): " + e2.getMessage());
+                sendMessage(new Message("System", "Loi tao phong: " + e2.getMessage(), Message.Type.SYSTEM));
+            }
         }
+    }
+
+    /** Admin tao phong tu xa */
+    private void adminCreateRoom(String name, int limit) {
+        String sql = "INSERT INTO Room (tenRoom, gioiHan) VALUES (?, ?)";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setInt(2, limit);
+            ps.executeUpdate();
+            gui.logSystem("[ADMIN] Da tao phong: " + name);
+            Server.broadcastToAdmins(new Message("SYS", "[ADMIN] Da tao phong: " + name, Message.Type.ADMIN_LOG));
+            broadcastRoomListToAll();
+        } catch (Exception e) {
+            gui.logError("DB Error (adminCreateRoom): " + e.getMessage());
+            sendMessage(new Message("ERROR", "Loi tao phong: " + e.getMessage(), Message.Type.ADMIN_LOG));
+        }
+    }
+
+    /** Admin sua phong tu xa */
+    private void adminEditRoom(int roomId, String name, int limit) {
+        String sql = "UPDATE Room SET tenRoom = ?, gioiHan = ? WHERE maRoom = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setInt(2, limit);
+            ps.setInt(3, roomId);
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                gui.logSystem("[ADMIN] Da sua phong ID=" + roomId + " -> " + name);
+                Server.broadcastToAdmins(new Message("SYS", "[ADMIN] Da sua phong ID=" + roomId, Message.Type.ADMIN_LOG));
+                broadcastRoomListToAll();
+            } else {
+                sendMessage(new Message("ERROR", "Khong tim thay phong ID=" + roomId, Message.Type.ADMIN_LOG));
+            }
+        } catch (Exception e) {
+            gui.logError("DB Error (adminEditRoom): " + e.getMessage());
+        }
+    }
+
+    /** Xoa phong - chi chu phong moi duoc xoa */
+    private void handleDeleteRoom(String content) {
+        int roomId;
+        try { roomId = Integer.parseInt(content.trim()); }
+        catch (Exception e) { return; }
+        if (roomId == 1) {
+            sendMessage(new Message("System", "Khong the xoa phong mac dinh!", Message.Type.SYSTEM));
+            return;
+        }
+        // Kiem tra chu phong
+        String checkSql = "SELECT maUser FROM Room WHERE maRoom = ?";
+        String getUserSql = "SELECT maUser FROM User WHERE tenUser = ?";
+        try (Connection conn = DBContext.getConnection()) {
+            int ownerUserId = -1;
+            try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+                ps.setInt(1, roomId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) ownerUserId = rs.getInt(1);
+            }
+            int myUserId = -1;
+            try (PreparedStatement ps = conn.prepareStatement(getUserSql)) {
+                ps.setString(1, username);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) myUserId = rs.getInt(1);
+            }
+            if (ownerUserId == -1 || (ownerUserId != myUserId && ownerUserId != 0)) {
+                sendMessage(new Message("System", "Ban khong co quyen xoa phong nay!", Message.Type.SYSTEM));
+                return;
+            }
+            // Kick moi nguoi ra phong 1 truoc
+            List<ClientHandler> members = Server.getRoomGroups().get(roomId);
+            if (members != null) {
+                List<ClientHandler> copy;
+                synchronized (members) { copy = new ArrayList<>(members); }
+                for (ClientHandler ch : copy) { ch.joinRoom(1); }
+            }
+            // Xoa du lieu
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM Message WHERE maRoom = ?")) {
+                ps.setInt(1, roomId); ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM UserRoom WHERE maRoom = ?")) {
+                ps.setInt(1, roomId); ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM Room WHERE maRoom = ?")) {
+                ps.setInt(1, roomId); ps.executeUpdate();
+            }
+            gui.logSystem("Da xoa phong ID=" + roomId + " boi " + username);
+            broadcastRoomListToAll();
+        } catch (Exception e) {
+            gui.logError("DB Error (deleteRoom): " + e.getMessage());
+        }
+    }
+
+    /** Tim kiem phong theo ma 5 ky tu */
+    private void handleRoomCodeSearch(String code) {
+        String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan,999) FROM Room WHERE roomCode = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code.trim().toUpperCase());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                String info = rs.getInt(1) + ":" + rs.getString(2) + ":" + rs.getInt(3) + ":" + rs.getInt(4);
+                sendMessage(new Message("System", info, Message.Type.ROOM_LIST));
+            } else {
+                sendMessage(new Message("System", "Khong tim thay phong voi ma: " + code, Message.Type.SYSTEM));
+            }
+        } catch (Exception e) {
+            // DB chua co cot roomCode - tra ve danh sach phong binh thuong
+            sendRoomListToClient();
+        }
+    }
+
+    /** Vao phong bang ma 5 ky tu */
+    private void joinRoomByCode(String code) {
+        String sql = "SELECT maRoom FROM Room WHERE roomCode = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code.trim().toUpperCase());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                joinRoom(rs.getInt(1));
+            } else {
+                sendMessage(new Message("System", "Khong tim thay phong voi ma: " + code, Message.Type.SYSTEM));
+            }
+        } catch (Exception e) {
+            sendMessage(new Message("System", "Loi tim phong: " + e.getMessage(), Message.Type.SYSTEM));
+        }
+    }
+
+    /** Tao ma phong 5 ky tu duy nhat (A-Z0-9) */
+    private String generateRoomCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        java.util.Random rnd = new java.util.Random();
+        String checkSql = "SELECT 1 FROM Room WHERE roomCode = ?";
+        for (int attempt = 0; attempt < 100; attempt++) {
+            StringBuilder sb = new StringBuilder(5);
+            for (int i = 0; i < 5; i++) sb.append(chars.charAt(rnd.nextInt(chars.length())));
+            String code = sb.toString();
+            try (Connection conn = DBContext.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(checkSql)) {
+                ps.setString(1, code);
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return code; // Chua ton tai
+            } catch (Exception e) { return code; }
+        }
+        return "XXXXX";
     }
 
     private void handleKickRequest(String targetUser) {

@@ -82,12 +82,14 @@ public class ChatFrame extends JFrame {
     private List<String[]> cachedRooms = new ArrayList<>(); // Cache để redraw highlight ngay khi đổi phòng
 
     // ===== LISTENER =====
-    // Interface để ChatFrame thông báo cho Controller khi user gửi tin hoặc kết nối
     public interface ChatFrameListener {
         void onSendMessage(String text);
         void onConnect(String username);
         void onDisconnect();
-        void onJoinRoom(int roomId); // Khi người dùng chọn phòng
+        void onJoinRoom(int roomId);
+        void onCreateRoom(String name, int limit);
+        void onDeleteRoom(int roomId);
+        void onSearchRoomCode(String code);
     }
 
     private ChatFrameListener frameListener;
@@ -197,18 +199,49 @@ public class ChatFrame extends JFrame {
         return sidebar;
     }
 
-    /** Panel danh sách phòng (phần trên sidebar) */
+    /** Panel danh sach phong (phan tren sidebar) */
     private JPanel createRoomListSection() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(COLOR_BG_SIDEBAR);
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 10));
+        JPanel header = new JPanel(new BorderLayout());
         header.setBackground(COLOR_BG_SIDEBAR);
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_SIDEBAR_DIVIDER));
-        JLabel title = new JLabel("🚪  Phòng Chat");
+        header.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_SIDEBAR_DIVIDER),
+            BorderFactory.createEmptyBorder(6, 16, 6, 8)));
+
+        JLabel title = new JLabel("Phong Chat");
         title.setFont(FONT_SIDEBAR_TITLE);
         title.setForeground(COLOR_TEXT_DARK);
-        header.add(title);
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 0));
+        btnRow.setOpaque(false);
+
+        JButton searchBtn = new JButton("#");
+        searchBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        searchBtn.setPreferredSize(new Dimension(26, 22));
+        searchBtn.setFocusPainted(false);
+        searchBtn.setBackground(new Color(0xE4E6EB));
+        searchBtn.setBorderPainted(false);
+        searchBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        searchBtn.setToolTipText("Tim phong theo ma 5 ky tu");
+        searchBtn.addActionListener(e -> showSearchRoomDialog());
+
+        JButton createBtn = new JButton("+");
+        createBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        createBtn.setPreferredSize(new Dimension(26, 22));
+        createBtn.setFocusPainted(false);
+        createBtn.setBackground(COLOR_ACCENT);
+        createBtn.setForeground(Color.WHITE);
+        createBtn.setBorderPainted(false);
+        createBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        createBtn.setToolTipText("Tao phong moi");
+        createBtn.addActionListener(e -> showCreateRoomDialog());
+
+        btnRow.add(searchBtn);
+        btnRow.add(createBtn);
+        header.add(title, BorderLayout.WEST);
+        header.add(btnRow, BorderLayout.EAST);
 
         roomListPanel = new JPanel();
         roomListPanel.setLayout(new BoxLayout(roomListPanel, BoxLayout.Y_AXIS));
@@ -222,6 +255,38 @@ public class ChatFrame extends JFrame {
         panel.add(header, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
+    }
+
+    /** Hien thi dialog tao phong */
+    private void showCreateRoomDialog() {
+        JPanel p = new JPanel(new GridLayout(2, 2, 8, 8));
+        p.setBorder(BorderFactory.createEmptyBorder(8, 4, 4, 4));
+        JTextField nameField = new JTextField("Phong cua toi", 16);
+        JSpinner limitSpin = new JSpinner(new SpinnerNumberModel(20, 2, 200, 1));
+        p.add(new JLabel("Ten phong:")); p.add(nameField);
+        p.add(new JLabel("Gioi han:")); p.add(limitSpin);
+        int r = JOptionPane.showConfirmDialog(this, p, "Tao phong moi",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (r == JOptionPane.OK_OPTION && frameListener != null) {
+            String name = nameField.getText().trim();
+            if (!name.isEmpty()) frameListener.onCreateRoom(name, (int) limitSpin.getValue());
+        }
+    }
+
+    /** Hien thi dialog tim kiem phong bang ma 5 ky tu */
+    private void showSearchRoomDialog() {
+        JTextField codeField = new JTextField(6);
+        codeField.setFont(new Font("Monospaced", Font.BOLD, 16));
+        JPanel p = new JPanel(new BorderLayout(8, 4));
+        p.add(new JLabel("Nhap ma phong (5 ky tu):"), BorderLayout.NORTH);
+        p.add(codeField, BorderLayout.CENTER);
+        int r = JOptionPane.showConfirmDialog(this, p, "Tim kiem phong",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (r == JOptionPane.OK_OPTION && frameListener != null) {
+            String code = codeField.getText().trim().toUpperCase();
+            if (code.length() == 5) frameListener.onSearchRoomCode(code);
+            else addSystemMessage("Ma phong phai co dung 5 ky tu!");
+        }
     }
 
     /** Panel danh sách thành viên (phần dưới sidebar) */
@@ -825,70 +890,118 @@ public class ChatFrame extends JFrame {
     }
 
     /**
-     * Hiển thị dialog nhập username khi vào
+     * Hien thi dialog dang nhap / dang ky dep hon
      */
     public AuthRequest showLoginDialog() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
+        // State
+        final boolean[] registerMode = {false};
+        final AuthRequest[] result = {null};
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.insets = new Insets(0, 0, 8, 0);
+        JDialog dlg = new JDialog(this, "Chat App - Xac Thuc", true);
+        dlg.setSize(380, 420);
+        dlg.setLocationRelativeTo(this);
+        dlg.setLayout(new BorderLayout());
+        dlg.getRootPane().setBorder(BorderFactory.createEmptyBorder(24, 30, 24, 30));
 
-        JLabel titleLabel = new JLabel("Chào mừng đến với Chat App! 👋");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        titleLabel.setForeground(COLOR_TEXT_DARK);
-        panel.add(titleLabel, gbc);
+        JPanel main = new JPanel();
+        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+        main.setBackground(Color.WHITE);
+        main.setBorder(BorderFactory.createEmptyBorder(24, 30, 20, 30));
 
-        gbc.gridy = 1;
-        JLabel subLabel = new JLabel("Nhập tài khoản để đăng nhập hoặc đăng ký:");
-        subLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subLabel.setForeground(COLOR_TEXT_GRAY);
-        panel.add(subLabel, gbc);
+        // Title
+        JLabel icon = new JLabel("Chat App");
+        icon.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        icon.setForeground(COLOR_ACCENT);
+        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        gbc.gridy = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(4, 0, 0, 0);
+        JLabel modeLbl = new JLabel("Dang Nhap");
+        modeLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        modeLbl.setForeground(COLOR_TEXT_DARK);
+        modeLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        javax.swing.JTextField nameField = new javax.swing.JTextField(20);
-        nameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        nameField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xCCCCCC)),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-        panel.add(nameField, gbc);
+        // Fields
+        JTextField userFld = new JTextField();
+        userFld.setFont(FONT_INPUT);
+        userFld.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        userFld.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0xCCCCCC), 1),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
 
-        gbc.gridy = 3;
-        gbc.insets = new Insets(10, 0, 0, 0);
-        JPasswordField passField = new JPasswordField(20);
-        passField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        passField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xCCCCCC)),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-        panel.add(passField, gbc);
+        JPasswordField passFld = new JPasswordField();
+        passFld.setFont(FONT_INPUT);
+        passFld.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        passFld.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0xCCCCCC), 1),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
 
-        // Custom dialog
-        Object[] options = {"Đăng nhập", "Đăng ký", "Hủy"};
-        int result = JOptionPane.showOptionDialog(
-                this,
-                panel,
-                "Xác thực Chat",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                options,
-                options[0]);
+        // Submit button
+        JButton submitBtn = new JButton("DANG NHAP");
+        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        submitBtn.setForeground(Color.WHITE);
+        submitBtn.setBackground(COLOR_ACCENT);
+        submitBtn.setBorderPainted(false);
+        submitBtn.setFocusPainted(false);
+        submitBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        submitBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        submitBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        if (result == 0 || result == 1) {
-            String name = nameField.getText().trim();
-            String password = new String(passField.getPassword());
-            if (!name.isEmpty() && !password.isEmpty()) {
-                return new AuthRequest(name, password, result == 1);
+        // Toggle link
+        JLabel toggleLbl = new JLabel("<html>Chua co tai khoan? <font color='#0084FF'><u>Dang Ky ngay</u></font></html>");
+        toggleLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        toggleLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        toggleLbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Toggle logic
+        toggleLbl.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                registerMode[0] = !registerMode[0];
+                if (registerMode[0]) {
+                    modeLbl.setText("Dang Ky Tai Khoan");
+                    submitBtn.setText("DANG KY");
+                    submitBtn.setBackground(new Color(0x00B894));
+                    toggleLbl.setText("<html>Da co tai khoan? <font color='#0084FF'><u>Dang Nhap</u></font></html>");
+                } else {
+                    modeLbl.setText("Dang Nhap");
+                    submitBtn.setText("DANG NHAP");
+                    submitBtn.setBackground(COLOR_ACCENT);
+                    toggleLbl.setText("<html>Chua co tai khoan? <font color='#0084FF'><u>Dang Ky ngay</u></font></html>");
+                }
             }
-        }
-        return null;
+        });
+
+        // Submit action
+        java.awt.event.ActionListener doSubmit = ev -> {
+            String u = userFld.getText().trim();
+            String p = new String(passFld.getPassword());
+            if (!u.isEmpty() && !p.isEmpty()) {
+                result[0] = new AuthRequest(u, p, registerMode[0]);
+                dlg.dispose();
+            } else {
+                JOptionPane.showMessageDialog(dlg, "Vui long nhap day du thong tin!", "Loi", JOptionPane.WARNING_MESSAGE);
+            }
+        };
+        submitBtn.addActionListener(doSubmit);
+        passFld.addActionListener(doSubmit);
+
+        main.add(icon);
+        main.add(Box.createVerticalStrut(6));
+        main.add(modeLbl);
+        main.add(Box.createVerticalStrut(16));
+        main.add(new JLabel("Ten tai khoan:"));
+        main.add(Box.createVerticalStrut(4));
+        main.add(userFld);
+        main.add(Box.createVerticalStrut(12));
+        main.add(new JLabel("Mat khau:"));
+        main.add(Box.createVerticalStrut(4));
+        main.add(passFld);
+        main.add(Box.createVerticalStrut(16));
+        main.add(submitBtn);
+        main.add(Box.createVerticalStrut(12));
+        main.add(toggleLbl);
+
+        dlg.add(main, BorderLayout.CENTER);
+        dlg.setVisible(true); // blocks until disposed
+        return result[0];
     }
 
     /**
