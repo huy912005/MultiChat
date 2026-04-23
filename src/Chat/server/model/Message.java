@@ -15,22 +15,26 @@ public class Message implements Serializable {
     // Các loại tin nhắn
     public enum Type {
         CHAT, JOIN, LEAVE, USER_LIST, SYSTEM,
-        CREATE_ROOM, // Tạo phòng mới
-        JOIN_ROOM, // Tham gia phòng cụ thể
-        LEAVE_ROOM, // Thoát phòng hiện tại
-        KICK, // Admin kick người dùng
-        HISTORY, // Gửi lịch sử tin nhắn
-        ROOM_LIST, // Server gửi danh sách tất cả phòng
-        AUTH, // Client gửi yêu cầu đăng nhập/đăng ký
-        AUTH_RESULT, // Server trả kết quả xác thực
-        ADMIN_LOG, // Gửi log từ server đến Admin GUI
-        ADMIN_USER_LIST, // Gửi danh sách user toàn server
-        ADMIN_KICK // Admin gửi yêu cầu kick
+        CREATE_ROOM,      // Tạo phòng mới (bởi user hoặc admin)
+        JOIN_ROOM,        // Tham gia phòng cụ thể
+        LEAVE_ROOM,       // Thoát phòng hiện tại
+        KICK,             // Admin kick người dùng
+        HISTORY,          // Gửi lịch sử tin nhắn
+        ROOM_LIST,        // Server gửi danh sách tất cả phòng
+        AUTH,             // Client gửi yêu cầu đăng nhập/đăng ký
+        AUTH_RESULT,      // Server trả kết quả xác thực
+        ADMIN_LOG,        // Gửi log từ server đến Admin GUI
+        ADMIN_USER_LIST,  // Gửi danh sách user toàn server
+        ADMIN_KICK,       // Admin gửi yêu cầu kick
+        DELETE_ROOM,      // Xóa phòng (chủ phòng hoặc admin)
+        ROOM_CODE_SEARCH, // Tìm kiếm phòng theo mã 5 ký tự
+        ADMIN_CREATE_ROOM,// Admin tạo phòng qua TCP stream
+        ADMIN_EDIT_ROOM   // Admin sửa phòng qua TCP stream
     }
 
-    private String sender; // Tên người gửi
-    private String content; // Nội dung tin nhắn
-    private Type type; // Loại tin nhắn
+    private String sender;    // Tên người gửi
+    private String content;   // Nội dung tin nhắn
+    private Type type;        // Loại tin nhắn
     private String timestamp; // Thời gian gửi
 
     // Constructor đầy đủ
@@ -80,12 +84,9 @@ public class Message implements Serializable {
     /**
      * Chuyển Message thành một chuỗi (String) duy nhất theo định dạng:
      * TYPE|SENDER|TIMESTAMP|URL_ENCODED_CONTENT
-     * Giúp mọi ngôn ngữ (Python, C++, C#) đều có thể cắt chuỗi và đọc được mà không
-     * lo lỗi khoảng trắng hay xuống dòng.
      */
     public String toNetworkString() {
         try {
-            // Encode content để tránh lỗi ký tự đặc biệt hoặc dấu xống dòng
             String safeContent = java.net.URLEncoder.encode(content != null ? content : "", "UTF-8");
             return type.name() + "|" + sender + "|" + timestamp + "|" + safeContent;
         } catch (Exception e) {
@@ -110,7 +111,7 @@ public class Message implements Serializable {
             String msgContent = java.net.URLDecoder.decode(parts[3], "UTF-8");
 
             Message msg = new Message(msgSender, msgContent, msgType);
-            msg.timestamp = msgTimestamp; // ghi đè lại timestamp từ mạng
+            msg.timestamp = msgTimestamp;
             return msg;
         } catch (Exception e) {
             return null;
