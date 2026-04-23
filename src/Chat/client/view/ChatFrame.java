@@ -1047,15 +1047,30 @@ public class ChatFrame extends JFrame {
         submitBtn.addActionListener(doSubmit);
         passFld.addActionListener(doSubmit);
 
+        JLabel userLbl = new JLabel("Ten tai khoan:");
+        userLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        userLbl.setForeground(COLOR_TEXT_DARK);
+        userLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel passLbl = new JLabel("Mat khau:");
+        passLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        passLbl.setForeground(COLOR_TEXT_DARK);
+        passLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        userFld.setAlignmentX(Component.LEFT_ALIGNMENT);
+        passFld.setAlignmentX(Component.LEFT_ALIGNMENT);
+        submitBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        toggleLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         main.add(icon);
         main.add(Box.createVerticalStrut(6));
         main.add(modeLbl);
         main.add(Box.createVerticalStrut(16));
-        main.add(new JLabel("Ten tai khoan:"));
+        main.add(userLbl);
         main.add(Box.createVerticalStrut(4));
         main.add(userFld);
         main.add(Box.createVerticalStrut(12));
-        main.add(new JLabel("Mat khau:"));
+        main.add(passLbl);
         main.add(Box.createVerticalStrut(4));
         main.add(passFld);
         main.add(Box.createVerticalStrut(16));
