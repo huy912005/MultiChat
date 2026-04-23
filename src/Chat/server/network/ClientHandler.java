@@ -94,6 +94,27 @@ public class ClientHandler implements Runnable {
                                 if (p.length == 3) {
                                     adminEditRoom(Integer.parseInt(p[0].trim()), p[1].trim(), Integer.parseInt(p[2].trim()));
                                 }
+                            } else if (msg.getType() == Message.Type.DELETE_ROOM) {
+                                int dRoomId = Integer.parseInt(msg.getContent().trim());
+                                // Kick tat ca roi xoa
+                                java.util.List<ClientHandler> mems = Server.getRoomGroups().get(dRoomId);
+                                if (mems != null) {
+                                    java.util.List<ClientHandler> copy = new java.util.ArrayList<>(mems);
+                                    for (ClientHandler ch : copy) { try { ch.joinRoom(1); } catch (Exception ignored) {} }
+                                }
+                                String[] sqls = {"DELETE FROM Message WHERE maRoom = ?",
+                                    "DELETE FROM UserRoom WHERE maRoom = ?", "DELETE FROM Room WHERE maRoom = ?"};
+                                try (Connection conn = DBContext.getConnection()) {
+                                    for (String sq : sqls) {
+                                        try (PreparedStatement ps = conn.prepareStatement(sq)) {
+                                            ps.setInt(1, dRoomId); ps.executeUpdate();
+                                        }
+                                    }
+                                } catch (Exception ex) { gui.logError("Loi xoa phong: " + ex.getMessage()); }
+                                Server.getRoomGroups().remove(dRoomId);
+                                gui.logSystem("[ADMIN] Da xoa phong ID=" + dRoomId);
+                                Server.broadcastToAdmins(new Message("SYS", "[ADMIN] Da xoa phong ID=" + dRoomId, Message.Type.ADMIN_LOG));
+                                broadcastRoomListToAll();
                             }
                         } catch (Exception e) { gui.logError("Admin cmd error: " + e.getMessage()); }
                     }
@@ -280,15 +301,16 @@ public class ClientHandler implements Runnable {
     }
 
     private void loadRoomHistory(int roomId) {
-        String sql = "SELECT u.tenUser, m.noiDung FROM Message m " +
+        String sql = "SELECT u.tenUser, m.noiDung, DATE_FORMAT(m.thoiGian, '%d/%m %H:%i') as thoiGian FROM Message m " +
                      "JOIN User u ON m.maUser = u.maUser " +
-                     "WHERE m.maRoom = ? ORDER BY m.thoiGian ASC LIMIT 20";
+                     "WHERE m.maRoom = ? ORDER BY m.thoiGian ASC LIMIT 50";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, roomId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Message oldMsg = new Message(rs.getString("tenUser"), rs.getString("noiDung"));
+                oldMsg.timestamp = rs.getString("thoiGian");
                 sendMessage(oldMsg);
             }
         } catch (Exception e) {

@@ -202,7 +202,42 @@ public class Server {
         }
     }
 
-    /** Sửa tên và giới hạn của phòng */
+    /** Xoa phong va kick tat ca thanh vien */
+    public boolean deleteRoom(int roomId) {
+        if (roomId == 1) return false; // Khong xoa phong mac dinh
+        // Kick tat ca nguoi trong phong ve phong 1
+        List<ClientHandler> members = roomGroups.get(roomId);
+        if (members != null) {
+            List<ClientHandler> copy = new java.util.ArrayList<>(members);
+            for (ClientHandler ch : copy) {
+                try { ch.joinRoom(1); } catch (Exception ignored) {}
+            }
+        }
+        // Xoa khoi DB
+        String[] sqls = {
+            "DELETE FROM Message WHERE maRoom = ?",
+            "DELETE FROM UserRoom WHERE maRoom = ?",
+            "DELETE FROM Room WHERE maRoom = ?"
+        };
+        try {
+            for (String sql : sqls) {
+                try (Connection conn = DBContext.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, roomId);
+                    ps.executeUpdate();
+                }
+            }
+            roomGroups.remove(roomId);
+            gui.logSystem("[ADMIN] Da xoa phong ID=" + roomId);
+            broadcastRoomListToAll();
+            return true;
+        } catch (Exception e) {
+            gui.logError("DB Error (deleteRoom): " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Sua ten va gioi han cua phong */
     public boolean editRoom(int roomId, String name, int limit) {
         String sql = "UPDATE Room SET tenRoom = ?, gioiHan = ? WHERE maRoom = ?";
         try (Connection conn = DBContext.getConnection();

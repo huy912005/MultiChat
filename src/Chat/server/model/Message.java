@@ -35,7 +35,7 @@ public class Message implements Serializable {
     private String sender;    // Tên người gửi
     private String content;   // Nội dung tin nhắn
     private Type type;        // Loại tin nhắn
-    private String timestamp; // Thời gian gửi
+    String timestamp; // Thoi gian gui (package-private de ClientHandler co the set khi load history)
 
     // Constructor đầy đủ
     public Message(String sender, String content, Type type) {
@@ -43,7 +43,7 @@ public class Message implements Serializable {
         this.content = content;
         this.type = type;
         this.timestamp = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("HH:mm"));
+                .format(DateTimeFormatter.ofPattern("dd/MM HH:mm"));
     }
 
     // Constructor cho tin nhắn chat thông thường

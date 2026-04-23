@@ -406,22 +406,26 @@ public class ServerGUI extends JFrame implements ServerLogger {
         scroll.setPreferredSize(new Dimension(280, 165));
         styleScrollBar(scroll.getVerticalScrollBar());
 
-        // Nút hành động
+        // Nut hanh dong
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 6));
         btnPanel.setOpaque(false);
 
-        JButton btnRefresh = createSmallButton("🔄 Làm mới");
+        JButton btnRefresh = createSmallButton("Lam moi");
         btnRefresh.addActionListener(e -> refreshRoomTable());
 
-        JButton btnCreate = createActionButton("＋ Tạo", ACCENT_GREEN);
+        JButton btnCreate = createActionButton("+ Tao", ACCENT_GREEN);
         btnCreate.addActionListener(e -> showCreateRoomDialog());
 
-        JButton btnEdit = createActionButton("✏ Sửa", ACCENT_BLUE);
+        JButton btnEdit = createActionButton("Sua", ACCENT_BLUE);
         btnEdit.addActionListener(e -> showEditRoomDialog());
+
+        JButton btnDelete = createActionButton("Xoa", ACCENT_RED);
+        btnDelete.addActionListener(e -> showDeleteRoomDialog());
 
         btnPanel.add(btnRefresh);
         btnPanel.add(btnCreate);
         btnPanel.add(btnEdit);
+        btnPanel.add(btnDelete);
 
         card.add(scroll,   BorderLayout.CENTER);
         card.add(btnPanel, BorderLayout.SOUTH);
@@ -622,8 +626,43 @@ public class ServerGUI extends JFrame implements ServerLogger {
         }
     }
 
+    /** Dialog xoa phong (admin) */
+    private void showDeleteRoomDialog() {
+        int row = roomTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Vui long chon mot phong trong bang de xoa!",
+                    "Chua chon phong", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        int    roomId  = (int)    roomTableModel.getValueAt(row, 0);
+        String curName = (String) roomTableModel.getValueAt(row, 1);
+        if (roomId == 1) {
+            showError("Khong the xoa phong mac dinh (Sanh Chung)!");
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Ban co chac muon XOA phong \"" + curName + "\" (ID=" + roomId + ")?\nTat ca tin nhan trong phong se bi xoa!",
+                "Xac nhan Xoa Phong", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (server != null) {
+                server.deleteRoom(roomId);
+                refreshRoomTable();
+            } else if (adminOut != null) {
+                Chat.server.model.Message cmd = new Chat.server.model.Message(
+                    "ADMIN", String.valueOf(roomId),
+                    Chat.server.model.Message.Type.DELETE_ROOM);
+                adminOut.println(cmd.toNetworkString());
+                logSystem("[CLOUD] Da gui lenh xoa phong ID=" + roomId);
+                new javax.swing.Timer(1200, e -> refreshRoomTable()).start();
+            } else {
+                showError("Chua ket noi den server!");
+            }
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════
-    //  PUBLIC API — được gọi từ Server / ClientHandler
+    //  PUBLIC API — duoc goi tu Server / ClientHandler
     // ══════════════════════════════════════════════════════════════
 
     public void logJoin(String username, String ip) {

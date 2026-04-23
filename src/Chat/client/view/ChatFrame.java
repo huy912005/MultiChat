@@ -63,7 +63,7 @@ public class ChatFrame extends JFrame {
     private static final Font FONT_TIMESTAMP = new Font("Segoe UI", Font.PLAIN, 10);
     private static final Font FONT_INPUT = new Font("Dialog", Font.PLAIN, 14);
     private static final Font FONT_SEND_BTN = new Font("Segoe UI", Font.BOLD, 13);
-    private static final Font FONT_EMOJI_BTN = new Font("Dialog", Font.PLAIN, 18);
+    private static final Font FONT_EMOJI_BTN = new Font("Segoe UI", Font.PLAIN, 16);
     private static final Font FONT_AVATAR = new Font("Segoe UI", Font.BOLD, 13);
     private static final Font FONT_ONLINE_COUNT = new Font("Segoe UI", Font.BOLD, 12);
 
@@ -111,7 +111,7 @@ public class ChatFrame extends JFrame {
         }
 
         // Cài đặt JFrame
-        setTitle("💬 Chat App - Lập Trình Mạng");
+        setTitle("[Chat] Chat App - Lap Trinh Mang");
         setSize(900, 650);
         setMinimumSize(new Dimension(700, 500));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -151,8 +151,9 @@ public class ChatFrame extends JFrame {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         leftPanel.setOpaque(false);
 
-        JLabel iconLabel = new JLabel("💬");
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 24));
+        JLabel iconLabel = new JLabel("[C]");
+        iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        iconLabel.setForeground(COLOR_TEXT_WHITE);
 
         JPanel titlePanel = new JPanel(new GridLayout(2, 1));
         titlePanel.setOpaque(false);
@@ -208,32 +209,35 @@ public class ChatFrame extends JFrame {
         header.setBackground(COLOR_BG_SIDEBAR);
         header.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_SIDEBAR_DIVIDER),
-            BorderFactory.createEmptyBorder(6, 16, 6, 8)));
+            BorderFactory.createEmptyBorder(7, 16, 7, 8)));
 
         JLabel title = new JLabel("Phong Chat");
         title.setFont(FONT_SIDEBAR_TITLE);
         title.setForeground(COLOR_TEXT_DARK);
 
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 0));
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         btnRow.setOpaque(false);
 
-        JButton searchBtn = new JButton("#");
-        searchBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        searchBtn.setPreferredSize(new Dimension(26, 22));
+        // Nut tim kiem phong theo ma
+        JButton searchBtn = new JButton("Tim phong");
+        searchBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        searchBtn.setPreferredSize(new Dimension(68, 24));
         searchBtn.setFocusPainted(false);
         searchBtn.setBackground(new Color(0xE4E6EB));
-        searchBtn.setBorderPainted(false);
+        searchBtn.setForeground(COLOR_TEXT_DARK);
+        searchBtn.setBorder(BorderFactory.createLineBorder(new Color(0xCCCCCC)));
         searchBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         searchBtn.setToolTipText("Tim phong theo ma 5 ky tu");
         searchBtn.addActionListener(e -> showSearchRoomDialog());
 
-        JButton createBtn = new JButton("+");
-        createBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        createBtn.setPreferredSize(new Dimension(26, 22));
+        // Nut tao phong moi
+        JButton createBtn = new JButton("+ Tao");
+        createBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        createBtn.setPreferredSize(new Dimension(56, 24));
         createBtn.setFocusPainted(false);
         createBtn.setBackground(COLOR_ACCENT);
         createBtn.setForeground(Color.WHITE);
-        createBtn.setBorderPainted(false);
+        createBtn.setBorder(BorderFactory.createLineBorder(new Color(0x0066CC)));
         createBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         createBtn.setToolTipText("Tao phong moi");
         createBtn.addActionListener(e -> showCreateRoomDialog());
@@ -406,11 +410,12 @@ public class ChatFrame extends JFrame {
     }
 
     private JButton createEmojiButton() {
-        JButton btn = new JButton("😀");
-        btn.setFont(FONT_EMOJI_BTN);
+        JButton btn = new JButton(":)");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btn.setPreferredSize(new Dimension(42, 40));
         btn.setBorder(BorderFactory.createLineBorder(new Color(0xDADDE1)));
         btn.setBackground(Color.WHITE);
+        btn.setForeground(new Color(0x666666));
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addActionListener(e -> showEmojiPopup(btn));
@@ -418,26 +423,26 @@ public class ChatFrame extends JFrame {
     }
 
     private void showEmojiPopup(Component anchor) {
-        // Dùng các ký tự icon tương thích tốt hơn với Swing/Windows để tránh ô vuông
+        // Dung ky tu ASCII/Unicode tuong thich voi Swing tren Windows
         final String[] emojis = {
-                "☺", "☻", "❤", "❣", "✌",
-                "👍", "👏", "🙏", "✓", "✍",
-                "★", "☆", "☀", "☕", "♫",
-                "⚡", "☘", "❄", "☂", "⚽"
+                ":)",  ":D",  ":P",  ":(" ,  ";)",
+                "<3",  "(y)", "ok" , "hi" ,  "xin chao",
+                "ha ha", "hehe", "wow", ":((", ":*",
+                "^_^", "-_-", "(ok)", "(no)", "..."
         };
 
         JPopupMenu popup = new JPopupMenu();
-        JPanel panel = new JPanel(new GridLayout(4, 5, 6, 6));
+        JPanel panel = new JPanel(new GridLayout(4, 5, 4, 4));
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         panel.setBackground(Color.WHITE);
 
         for (String emoji : emojis) {
             JButton emojiItem = new JButton(emoji);
-            emojiItem.setFont(FONT_EMOJI_BTN);
-            emojiItem.setMargin(new Insets(4, 4, 4, 4));
+            emojiItem.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            emojiItem.setMargin(new Insets(3, 3, 3, 3));
             emojiItem.setFocusPainted(false);
-            emojiItem.setBackground(Color.WHITE);
-            emojiItem.setBorder(BorderFactory.createLineBorder(new Color(0xECEFF1)));
+            emojiItem.setBackground(new Color(0xF0F2F5));
+            emojiItem.setBorder(BorderFactory.createLineBorder(new Color(0xDDDDDD)));
             emojiItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
             emojiItem.addActionListener(e -> {
                 int pos = inputField.getCaretPosition();
@@ -452,11 +457,11 @@ public class ChatFrame extends JFrame {
         }
 
         popup.add(panel);
-        popup.show(anchor, 0, -210);
+        popup.show(anchor, 0, -180);
     }
 
     private JButton createSendButton() {
-        JButton btn = new JButton("Gửi ->") {
+        JButton btn = new JButton("Gui") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -1083,7 +1088,7 @@ public class ChatFrame extends JFrame {
         roomListPanel.repaint();
     }
 
-    /** Tạo một hàng phòng trong sidebar */
+    /** Tao mot hang phong trong sidebar */
     private JPanel createRoomItem(int roomId, String name, int currentUsers, int limit) {
         boolean isActive = (roomId == currentRoomId);
         Color   bgColor  = isActive ? new Color(0xDCEEFE) : COLOR_BG_SIDEBAR;
@@ -1098,49 +1103,96 @@ public class ChatFrame extends JFrame {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xF0F2F5)),
                 BorderFactory.createEmptyBorder(10, 16, 10, 12)));
 
-        // Left: tên phòng + số người
+        // Icon phong: hinh tron mau ve bang code (khong dung emoji)
+        Color[] roomColors = {
+            new Color(0x4ECDC4), new Color(0xFF6B6B), new Color(0x45B7D1),
+            new Color(0x96CEB4), new Color(0xFECA57), new Color(0xA29BFE),
+            new Color(0xFD79A8), new Color(0x00B894), new Color(0xE17055)
+        };
+        Color roomColor = roomColors[Math.abs(name.hashCode()) % roomColors.length];
+
+        JPanel iconPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(isActive ? COLOR_ACCENT : roomColor);
+                g2.fillRoundRect(2, 2, getWidth()-4, getHeight()-4, 8, 8);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                String letter = name.isEmpty() ? "?" : String.valueOf(name.charAt(0)).toUpperCase();
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString(letter, (getWidth()-fm.stringWidth(letter))/2, (getHeight()-fm.getHeight())/2+fm.getAscent());
+                g2.dispose();
+            }
+        };
+        iconPanel.setOpaque(false);
+        iconPanel.setPreferredSize(new Dimension(32, 32));
+        iconPanel.setMinimumSize(new Dimension(32, 32));
+        iconPanel.setMaximumSize(new Dimension(32, 32));
+
+        // Left: ten phong + so nguoi
         JPanel leftPanel = new JPanel(new GridLayout(2, 1, 0, 2));
         leftPanel.setOpaque(false);
 
-        JLabel nameLabel = new JLabel("🚪 " + name);
+        JLabel nameLabel = new JLabel(name);
         nameLabel.setFont(isActive ? FONT_USERNAME : new Font("Segoe UI", Font.PLAIN, 13));
         nameLabel.setForeground(isActive ? COLOR_ACCENT : COLOR_TEXT_DARK);
 
-        JLabel infoLabel = new JLabel(currentUsers + " / " + limit + " người");
+        JLabel infoLabel = new JLabel(currentUsers + " / " + limit + " nguoi");
         infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         infoLabel.setForeground(COLOR_TEXT_GRAY);
 
         leftPanel.add(nameLabel);
         leftPanel.add(infoLabel);
+
+        item.add(iconPanel, BorderLayout.WEST);
         item.add(leftPanel, BorderLayout.CENTER);
 
-        // Right: chấm xanh nếu đang ở phòng này
+        // Cham xanh neu dang o phong nay
         if (isActive) {
-            JLabel dot = new JLabel("●");
-            dot.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            dot.setForeground(COLOR_ACCENT);
-            item.add(dot, BorderLayout.EAST);
+            JLabel activeDot = new JLabel("●");
+            activeDot.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            activeDot.setForeground(COLOR_ACCENT);
+            item.add(activeDot, BorderLayout.EAST);
         }
 
-        // Click để vào phòng (chỉ khi chưa ở phòng đó)
+        // Click de vao phong (chi khi chua o phong do)
         if (!isActive) {
             item.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
+                @Override public void mouseClicked(MouseEvent e) {
                     if (frameListener != null) frameListener.onJoinRoom(roomId);
                 }
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    item.setBackground(new Color(0xEBF5FE));
-                    item.repaint();
+                @Override public void mouseEntered(MouseEvent e) {
+                    item.setBackground(new Color(0xEBF5FE)); item.repaint();
                 }
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    item.setBackground(bgColor);
-                    item.repaint();
+                @Override public void mouseExited(MouseEvent e) {
+                    item.setBackground(bgColor); item.repaint();
                 }
             });
         }
+
+        // Chuot phai: xoa phong (neu la chu phong)
+        item.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON3 && roomId != 1) {
+                    JPopupMenu menu = new JPopupMenu();
+                    JMenuItem delItem = new JMenuItem("Xoa phong nay");
+                    delItem.setForeground(new Color(0xE53935));
+                    delItem.addActionListener(ev -> {
+                        int confirm = JOptionPane.showConfirmDialog(ChatFrame.this,
+                            "Ban co chac muon xoa phong \"" + name + "\"?",
+                            "Xac nhan xoa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                        if (confirm == JOptionPane.YES_OPTION && frameListener != null) {
+                            frameListener.onDeleteRoom(roomId);
+                        }
+                    });
+                    menu.add(delItem);
+                    menu.show(item, e.getX(), e.getY());
+                }
+            }
+        });
         return item;
     }
 
