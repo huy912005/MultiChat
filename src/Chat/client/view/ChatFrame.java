@@ -812,7 +812,8 @@ public class ChatFrame extends JFrame {
             row.setOpaque(false);
             row.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
 
-            JLabel label = new JLabel(content) {
+            // Dung HTML de ho tro hien thi emoji tot hon (Swing engine render HTML tot hon JLabel thuong)
+            JLabel label = new JLabel("<html>" + content + "</html>") {
                 @Override
                 protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
@@ -865,17 +866,29 @@ public class ChatFrame extends JFrame {
             card.setOpaque(false);
             card.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
 
-            JLabel titleLbl = new JLabel("\uD83C\uDF89 Phong da duoc tao thanh cong!");
+            JLabel titleLbl = new JLabel("<html>\uD83C\uDF89 Phong da duoc tao thanh cong!</html>");
             titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
             titleLbl.setForeground(new Color(0x1E8449));
             titleLbl.setHorizontalAlignment(SwingConstants.CENTER);
 
-            JLabel codeLbl = new JLabel("Mã mời bạn bè của bạn là : " + roomCode);
-            codeLbl.setFont(new Font("Consolas", Font.BOLD, 18));
-            codeLbl.setForeground(new Color(0x27AE60));
+            JLabel codeLbl = new JLabel("<html>Mã mời bạn bè của bạn là : <b style='color:#27AE60'>" + roomCode + "</b></html>");
+            codeLbl.setFont(new Font("Segoe UI", Font.PLAIN, 15));
             codeLbl.setHorizontalAlignment(SwingConstants.CENTER);
+            codeLbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            codeLbl.setToolTipText("Click de sao chep ma");
+            
+            // Su kien click de copy ma
+            codeLbl.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    java.awt.datatransfer.StringSelection selection = new java.awt.datatransfer.StringSelection(roomCode);
+                    java.awt.datatransfer.Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
+                    clipboard.setContents(selection, selection);
+                    JOptionPane.showMessageDialog(ChatFrame.this, "Da sao chep ma phong: " + roomCode);
+                }
+            });
 
-            JLabel hintLbl = new JLabel("Chia se ma nay de ban be co the tim va vao phong cua ban.");
+            JLabel hintLbl = new JLabel("(Click vao ma o tren de sao chep va gui cho ban be)");
             hintLbl.setFont(new Font("Segoe UI", Font.ITALIC, 11));
             hintLbl.setForeground(new Color(0x5D6D7E));
             hintLbl.setHorizontalAlignment(SwingConstants.CENTER);

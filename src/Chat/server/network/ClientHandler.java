@@ -434,6 +434,7 @@ public class ClientHandler implements Runnable {
             ps.setString(3, username);
             ps.setString(4, roomCode);
             ps.executeUpdate();
+            gui.logSystem("User '" + username + "' da tao phong: " + roomName + " (Ma: " + roomCode + ")");
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int newId = rs.getInt(1);
