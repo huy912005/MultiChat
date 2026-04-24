@@ -983,6 +983,8 @@ public class ChatFrame extends JFrame {
         JLabel nameLabel = new JLabel(displayName);
         nameLabel.setFont(new Font("Segoe UI", isOwner ? Font.BOLD : Font.PLAIN, 13));
         nameLabel.setForeground(COLOR_TEXT_DARK);
+        
+        final String targetName = displayName; // Dung bien final de truy cap tu inner class
 
         if (isOwner) {
             JLabel starLabel = new JLabel(" \u2B50"); // ⭐
@@ -1033,13 +1035,13 @@ public class ChatFrame extends JFrame {
                         }
                     }
 
-                    if (iAmOwner && !displayName.equals(currentUsername)) {
+                    if (iAmOwner && !targetName.equals(currentUsername)) {
                         JPopupMenu menu = new JPopupMenu();
                         JMenuItem kickItem = new JMenuItem("Kick khoi phong");
                         kickItem.setForeground(Color.RED);
                         kickItem.addActionListener(ev -> {
                             if (frameListener != null) {
-                                frameListener.onKickMember(displayName);
+                                frameListener.onKickMember(targetName);
                             }
                         });
                         menu.add(kickItem);
