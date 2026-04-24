@@ -151,8 +151,9 @@ public class ChatFrame extends JFrame {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         leftPanel.setOpaque(false);
 
-        JLabel iconLabel = new JLabel("[C]");
-        iconLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        // Icon chat (khong dung [C] text)
+        JLabel iconLabel = new JLabel("\uD83D\uDCAC"); // 💬 icon chat
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
         iconLabel.setForeground(COLOR_TEXT_WHITE);
 
         JPanel titlePanel = new JPanel(new GridLayout(2, 1));

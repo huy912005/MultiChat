@@ -202,7 +202,7 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                         int    rId   = Integer.parseInt(roomInfo[0].trim());
                         String rName = roomInfo[1].trim();
                         view.setCurrentRoom(rId, rName);
-                        view.addSystemMessage("✅ Bạn đã vào phòng: " + rName);
+                        // Khong hien "Bạn đã vào phòng" nua - ten phong da hien o header
                     } catch (NumberFormatException ignored) {}
                 }
                 break;

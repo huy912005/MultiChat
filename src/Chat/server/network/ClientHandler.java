@@ -429,11 +429,11 @@ public class ClientHandler implements Runnable {
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int newId = rs.getInt(1);
-                // Gui thong bao cho user biet ma phong
-                sendMessage(new Message("System", "ROOM_CODE:" + roomCode, Message.Type.SYSTEM));
-                sendMessage(new Message("System", "Da tao phong " + roomName + " (Ma: " + roomCode + ")", Message.Type.SYSTEM));
+                // Join phong TRUOC - joinRoom se clear chat cu, broadcast room list
                 joinRoom(newId);
                 broadcastRoomListToAll();
+                // Sau do moi gui ROOM_CODE - se hien thi trong phong moi, khong bi clear
+                sendMessage(new Message("System", "ROOM_CODE:" + roomCode, Message.Type.SYSTEM));
             }
         } catch (Exception e) {
             // Thu lai khong co cot roomCode/maUser neu DB cu
@@ -446,9 +446,9 @@ public class ClientHandler implements Runnable {
                 ResultSet rs2 = ps2.getGeneratedKeys();
                 if (rs2.next()) {
                     int newId = rs2.getInt(1);
-                    sendMessage(new Message("System", "Da tao phong " + roomName, Message.Type.SYSTEM));
                     joinRoom(newId);
                     broadcastRoomListToAll();
+                    sendMessage(new Message("System", "Phong nay la phong rieng. Chi nhung nguoi co ma moi vao duoc.", Message.Type.SYSTEM));
                 }
             } catch (Exception e2) {
                 gui.logError("DB Error (createRoom): " + e2.getMessage());
