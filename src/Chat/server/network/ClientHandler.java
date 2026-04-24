@@ -529,6 +529,9 @@ public class ClientHandler implements Runnable {
                 synchronized (members) { copy = new ArrayList<>(members); }
                 for (ClientHandler ch : copy) { ch.joinRoom(1); }
             }
+            // Lay ten phong truoc khi xoa de log
+            String roomName = getRoomNameFromDB(roomId);
+            
             // Xoa du lieu
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM Message WHERE maRoom = ?")) {
                 ps.setInt(1, roomId); ps.executeUpdate();
@@ -539,8 +542,8 @@ public class ClientHandler implements Runnable {
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM Room WHERE maRoom = ?")) {
                 ps.setInt(1, roomId); ps.executeUpdate();
             }
-            gui.logSystem("Đã xóa phòng ID=" + roomId + " bởi " + username);
-            Server.broadcastToAdmins(new Message("ROOM_LOG", username + " đã xóa phòng : " + roomId, Message.Type.ADMIN_LOG));
+            gui.logSystem(username + " đã xóa phòng : " + roomName);
+            Server.broadcastToAdmins(new Message("ROOM_LOG", username + " đã xóa phòng : " + roomName, Message.Type.ADMIN_LOG));
             broadcastRoomListToAll();
         } catch (Exception e) {
             gui.logError("DB Error (deleteRoom): " + e.getMessage());

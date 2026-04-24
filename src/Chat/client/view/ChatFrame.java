@@ -90,6 +90,7 @@ public class ChatFrame extends JFrame {
         void onCreateRoom(String name, int limit);
         void onDeleteRoom(int roomId);
         void onSearchRoomCode(String code);
+        void onKickMember(String username);
     }
 
     private ChatFrameListener frameListener;
@@ -1038,11 +1039,7 @@ public class ChatFrame extends JFrame {
                         kickItem.setForeground(Color.RED);
                         kickItem.addActionListener(ev -> {
                             if (frameListener != null) {
-                                // Gửi lệnh KICK tới server
-                                Message kickMsg = new Message(currentUsername, displayName, Message.Type.KICK);
-                                // Hack: Su dung onSearchRoomCode tam thoi de gui message dac biet hoac add vao listener
-                                // O day toi se goi onDeleteRoom voi logic dac biet hoac dung callback
-                                ((Chat.client.network.ClientSocket) ((Chat.client.controller.ChatController)frameListener).getNetwork()).sendMessage(kickMsg);
+                                frameListener.onKickMember(displayName);
                             }
                         });
                         menu.add(kickItem);

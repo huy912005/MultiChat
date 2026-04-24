@@ -123,6 +123,12 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
         network.sendMessage(new Message(username, code, Message.Type.ROOM_CODE_SEARCH));
     }
 
+    @Override
+    public void onKickMember(String targetUser) {
+        if (!network.isConnected()) { view.showError("Khong co ket noi!"); return; }
+        network.sendMessage(new Message(username, targetUser, Message.Type.KICK));
+    }
+
     /**
      * Được gọi khi người dùng yêu cầu kết nối (không dùng ở đây vì tự động)
      */
