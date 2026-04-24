@@ -372,7 +372,6 @@ public class ClientHandler implements Runnable {
 
         String roomName = getRoomNameFromDB(roomId);
         sendMessage(new Message("Hệ thống", roomId + ":" + roomName, Message.Type.JOIN_ROOM));
-        sendMessage(new Message("Hệ thống", "Đang tải lịch sử phòng " + roomName + "...", Message.Type.SYSTEM));
         loadRoomHistory(roomId);
 
         broadcastUserList(roomId);
