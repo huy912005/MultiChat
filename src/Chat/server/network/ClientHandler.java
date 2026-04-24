@@ -379,7 +379,7 @@ public class ClientHandler implements Runnable {
         
         // Chi thong bao 1 LAN DUY NHAT khi user lan dau tien vao phong nay trong phien lam viec
         if (!notifiedRooms.contains(roomId)) {
-            Message joinNotification = new Message("He thong", username, Message.Type.JOIN);
+            Message joinNotification = new Message("Hệ thống", username, Message.Type.JOIN);
             List<ClientHandler> members = Server.getRoomGroups().get(roomId);
             if (members != null) {
                 for (ClientHandler ch : members) {
@@ -437,8 +437,8 @@ public class ClientHandler implements Runnable {
             ps.setString(3, username);
             ps.setString(4, roomCode);
             ps.executeUpdate();
-            gui.logSystem("User '" + username + "' da tao phong: " + roomName + " (Ma: " + roomCode + ")");
-            Server.broadcastToAdmins(new Message("ROOM_LOG", "User '" + username + "' da tao phong: " + roomName, Message.Type.ADMIN_LOG));
+            gui.logSystem("User '" + username + "' đã tạo phòng: " + roomName + " (Mã: " + roomCode + ")");
+            Server.broadcastToAdmins(new Message("ROOM_LOG", username + " đã tạo phòng : " + roomName, Message.Type.ADMIN_LOG));
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int newId = rs.getInt(1);
@@ -539,8 +539,8 @@ public class ClientHandler implements Runnable {
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM Room WHERE maRoom = ?")) {
                 ps.setInt(1, roomId); ps.executeUpdate();
             }
-            gui.logSystem("Da xoa phong ID=" + roomId + " boi " + username);
-            Server.broadcastToAdmins(new Message("ROOM_LOG", "Da xoa phong ID=" + roomId + " boi " + username, Message.Type.ADMIN_LOG));
+            gui.logSystem("Đã xóa phòng ID=" + roomId + " bởi " + username);
+            Server.broadcastToAdmins(new Message("ROOM_LOG", username + " đã xóa phòng : " + roomId, Message.Type.ADMIN_LOG));
             broadcastRoomListToAll();
         } catch (Exception e) {
             gui.logError("DB Error (deleteRoom): " + e.getMessage());
@@ -603,20 +603,32 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleKickRequest(String targetUser) {
-        // Kiểm tra quyền (Ví dụ: Chỉ chủ phòng hoặc Admin mới được kick)
-        List<ClientHandler> members = Server.getRoomGroups().get(currentRoomId);
-        if (members == null) return; // null check để tránh NullPointerException
-        
-        // Sử dụng CopyOnWriteArrayList hoặc copy danh sách để tránh ConcurrentModificationException
-        List<ClientHandler> membersCopy;
-        synchronized (members) {
-            membersCopy = new ArrayList<>(members);
+        // Kiem tra quyen: Chỉ Admin hoac CHU PHONG moi duoc kick
+        boolean isOwner = false;
+        String sql = "SELECT 1 FROM Room r JOIN User u ON r.maUser = u.maUser WHERE r.maRoom = ? AND u.tenUser = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, currentRoomId);
+            ps.setString(2, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) isOwner = true;
+        } catch (Exception e) { isOwner = false; }
+
+        if (!isOwner && !username.equalsIgnoreCase("admin")) {
+            sendMessage(new Message("Hệ thống", "Bạn không có quyền kick thành viên!", Message.Type.SYSTEM));
+            return;
         }
+
+        List<ClientHandler> members = Server.getRoomGroups().get(currentRoomId);
+        if (members == null) return;
+        
+        List<ClientHandler> membersCopy;
+        synchronized (members) { membersCopy = new ArrayList<>(members); }
         
         for (ClientHandler ch : membersCopy) {
             if (ch.username != null && ch.username.equals(targetUser)) {
                 ch.sendMessage(new Message("Hệ thống", "Bạn bị kick khỏi phòng bởi " + this.username, Message.Type.SYSTEM));
-                ch.joinRoom(1); // Trả về phòng mặc định
+                ch.joinRoom(1);
                 break;
             }
         }
@@ -649,30 +661,33 @@ public class ClientHandler implements Runnable {
         List<ClientHandler> members = Server.getRoomGroups().get(roomId);
         if (members != null) {
             List<ClientHandler> membersCopy;
-            synchronized (members) {
-                membersCopy = new ArrayList<>(members);
-            }
+            synchronized (members) { membersCopy = new ArrayList<>(members); }
             
+            // Tim chu phong
+            String ownerName = "";
+            String sql = "SELECT u.tenUser FROM Room r JOIN User u ON r.maUser = u.maUser WHERE r.maRoom = ?";
+            try (Connection conn = DBContext.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, roomId);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) ownerName = rs.getString(1);
+            } catch (Exception e) {}
+
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < membersCopy.size(); i++) {
                 ClientHandler ch = membersCopy.get(i);
                 if (ch != null && ch.username != null) {
                     sb.append(ch.username);
+                    if (ch.username.equals(ownerName)) {
+                        sb.append("*"); // Danh dau chu phong
+                    }
                     if (i < membersCopy.size() - 1) sb.append(",");
                 }
             }
             
-            gui.logSystem("[DEBUG] Broadcast user list for room " + roomId + ": " + sb.toString() + " (" + membersCopy.size() + " users)");
             Message listMsg = new Message("Hệ thống", sb.toString(), Message.Type.USER_LIST);
-            
             for (ClientHandler ch : membersCopy) {
-                try {
-                    if (ch != null) {
-                        ch.sendMessage(listMsg);
-                    }
-                } catch (Exception e) {
-                    gui.logError("Loi gui danh sach user cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
-                }
+                if (ch != null) ch.sendMessage(listMsg);
             }
             gui.updateOnlineUserCount();
         }

@@ -175,6 +175,25 @@ public class ChatFrame extends JFrame {
         leftPanel.add(titlePanel);
 
         header.add(leftPanel, BorderLayout.WEST);
+
+        // Nút ba chấm ở góc phải
+        JButton moreBtn = new JButton("<html><b style='font-size:16px'>\u22EE</b></html>"); //  ⋮
+        moreBtn.setOpaque(false);
+        moreBtn.setContentAreaFilled(false);
+        moreBtn.setBorder(null);
+        moreBtn.setForeground(Color.WHITE);
+        moreBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        moreBtn.addActionListener(e -> {
+            JPopupMenu menu = new JPopupMenu();
+            JMenuItem leaveItem = new JMenuItem("Rời phòng");
+            leaveItem.addActionListener(ev -> {
+                if (frameListener != null) frameListener.onJoinRoom(1);
+            });
+            menu.add(leaveItem);
+            menu.show(moreBtn, 0, moreBtn.getHeight());
+        });
+        header.add(moreBtn, BorderLayout.EAST);
+
         return header;
     }
 
@@ -485,6 +504,7 @@ public class ChatFrame extends JFrame {
     private void showEmojiPopup(Component anchor) {
         // Real Unicode emoji - su dung Segoe UI Emoji font tren Windows
         final String[] emojis = {
+            "\uD83D\uDC4B", // 👋 vẫy tay chào (MỚI - ĐƯA LÊN ĐẦU)
             "\uD83D\uDE04", // 😄 cuoi to
             "\uD83D\uDE02", // 😂 cuoi chay nuoc mat
             "\uD83E\uDD23", // 🤣 lan lon cuoi
@@ -500,7 +520,7 @@ public class ChatFrame extends JFrame {
             "\u2764\uFE0F", // ❤️ tim do
             "\uD83D\uDC9C", // 💜 tim tim
             "\uD83D\uDC95", // 💕 hai tim
-            "\uD83D\uDE4F", // 🙏 cam on / van xin
+            "\uD83D\uDE4F", // 🙏 cam on
             "\uD83D\uDD25", // 🔥 fire
             "\uD83C\uDF89", // 🎉 bong bay
             "\uD83D\uDC4F", // 👏 vo tay
@@ -512,7 +532,7 @@ public class ChatFrame extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         panel.setBackground(Color.WHITE);
 
-        Font emojiFont = new Font("Segoe UI Emoji", Font.PLAIN, 22);
+        Font emojiFont = new Font("Segoe UI Emoji", Font.PLAIN, 18); // Nhỏ lại một chút cho dễ nhìn
         for (String emoji : emojis) {
             JButton emojiItem = new JButton(emoji);
             emojiItem.setFont(emojiFont);
@@ -865,7 +885,8 @@ public class ChatFrame extends JFrame {
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
             card.setOpaque(false);
             card.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-            card.setMaximumSize(new Dimension(420, 140));
+            card.setPreferredSize(new Dimension(440, 140));
+            card.setMaximumSize(new Dimension(440, 140));
             card.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             JLabel titleLbl = new JLabel("<html><body style='font-family: Segoe UI, Segoe UI Emoji, Dialog;'>&#127881; Phong da duoc tao thanh cong!</body></html>");
@@ -951,9 +972,22 @@ public class ChatFrame extends JFrame {
         JPanel namePanel = new JPanel(new BorderLayout(4, 0));
         namePanel.setOpaque(false);
 
-        JLabel nameLabel = new JLabel(username);
-        nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        String displayName = username;
+        boolean isOwner = false;
+        if (username.endsWith("*")) {
+            displayName = username.substring(0, username.length() - 1);
+            isOwner = true;
+        }
+
+        JLabel nameLabel = new JLabel(displayName);
+        nameLabel.setFont(new Font("Segoe UI", isOwner ? Font.BOLD : Font.PLAIN, 13));
         nameLabel.setForeground(COLOR_TEXT_DARK);
+
+        if (isOwner) {
+            JLabel starLabel = new JLabel(" \u2B50"); // ⭐
+            starLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 10));
+            namePanel.add(starLabel, BorderLayout.EAST);
+        }
 
         JPanel onlineDotPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         onlineDotPanel.setOpaque(false);
@@ -961,7 +995,7 @@ public class ChatFrame extends JFrame {
         JLabel dotLabel = new JLabel("● Online");
         dotLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         dotLabel.setForeground(COLOR_ONLINE_DOT);
-
+        
         onlineDotPanel.add(dotLabel);
 
         namePanel.add(nameLabel, BorderLayout.CENTER);
@@ -978,8 +1012,43 @@ public class ChatFrame extends JFrame {
             }
 
             @Override
-            public void mouseExited(MouseEvent e) {
-                item.setBackground(COLOR_BG_SIDEBAR);
+            public void mouseClicked(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON3 && currentRoomId != 1) {
+                    // Check if current user is owner (has * in the list)
+                    boolean iAmOwner = false;
+                    for (Component c : userListPanel.getComponents()) {
+                        if (c instanceof JPanel) {
+                            for (Component inner : ((JPanel)c).getComponents()) {
+                                if (inner instanceof JPanel) { // namePanel
+                                    for (Component n : ((JPanel)inner).getComponents()) {
+                                        if (n instanceof JLabel && ((JLabel)n).getText().equals(currentUsername) 
+                                            && ((JLabel)n).getFont().isBold()) {
+                                            iAmOwner = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (iAmOwner && !displayName.equals(currentUsername)) {
+                        JPopupMenu menu = new JPopupMenu();
+                        JMenuItem kickItem = new JMenuItem("Kick khoi phong");
+                        kickItem.setForeground(Color.RED);
+                        kickItem.addActionListener(ev -> {
+                            if (frameListener != null) {
+                                // Gửi lệnh KICK tới server
+                                Message kickMsg = new Message(currentUsername, displayName, Message.Type.KICK);
+                                // Hack: Su dung onSearchRoomCode tam thoi de gui message dac biet hoac add vao listener
+                                // O day toi se goi onDeleteRoom voi logic dac biet hoac dung callback
+                                ((Chat.client.network.ClientSocket) ((Chat.client.controller.ChatController)frameListener).getNetwork()).sendMessage(kickMsg);
+                            }
+                        });
+                        menu.add(kickItem);
+                        menu.show(item, e.getX(), e.getY());
+                    }
+                }
             }
         });
 
