@@ -812,8 +812,8 @@ public class ChatFrame extends JFrame {
             row.setOpaque(false);
             row.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
 
-            // Dung HTML de ho tro hien thi emoji tot hon (Swing engine render HTML tot hon JLabel thuong)
-            JLabel label = new JLabel("<html>" + content + "</html>") {
+            // Dung HTML va chi dinh font ho tro emoji (Segoe UI Emoji)
+            JLabel label = new JLabel("<html><body style='font-family: Segoe UI, Segoe UI Emoji, Dialog;'>" + content + "</body></html>") {
                 @Override
                 protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
@@ -862,18 +862,20 @@ public class ChatFrame extends JFrame {
                     super.paintComponent(g);
                 }
             };
-            card.setLayout(new java.awt.GridLayout(3, 1, 0, 4));
+            card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
             card.setOpaque(false);
-            card.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
+            card.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+            card.setMaximumSize(new Dimension(420, 140));
+            card.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-            JLabel titleLbl = new JLabel("<html>\uD83C\uDF89 Phong da duoc tao thanh cong!</html>");
-            titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            JLabel titleLbl = new JLabel("<html><body style='font-family: Segoe UI, Segoe UI Emoji, Dialog;'>&#127881; Phong da duoc tao thanh cong!</body></html>");
+            titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
             titleLbl.setForeground(new Color(0x1E8449));
-            titleLbl.setHorizontalAlignment(SwingConstants.CENTER);
+            titleLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-            JLabel codeLbl = new JLabel("<html>Mã mời bạn bè của bạn là : <b style='color:#27AE60'>" + roomCode + "</b></html>");
+            JLabel codeLbl = new JLabel("<html>Mã mời bạn bè của bạn là : <b style='color:#27AE60; font-size:16px'>" + roomCode + "</b></html>");
             codeLbl.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-            codeLbl.setHorizontalAlignment(SwingConstants.CENTER);
+            codeLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
             codeLbl.setCursor(new Cursor(Cursor.HAND_CURSOR));
             codeLbl.setToolTipText("Click de sao chep ma");
             
@@ -888,13 +890,15 @@ public class ChatFrame extends JFrame {
                 }
             });
 
-            JLabel hintLbl = new JLabel("(Click vao ma o tren de sao chep va gui cho ban be)");
+            JLabel hintLbl = new JLabel("(Click vao ma o tren de sao chep)");
             hintLbl.setFont(new Font("Segoe UI", Font.ITALIC, 11));
             hintLbl.setForeground(new Color(0x5D6D7E));
-            hintLbl.setHorizontalAlignment(SwingConstants.CENTER);
+            hintLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             card.add(titleLbl);
+            card.add(Box.createVerticalStrut(8));
             card.add(codeLbl);
+            card.add(Box.createVerticalStrut(4));
             card.add(hintLbl);
 
             row.add(card);
