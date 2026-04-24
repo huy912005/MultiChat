@@ -870,8 +870,8 @@ public class ChatFrame extends JFrame {
             titleLbl.setForeground(new Color(0x1E8449));
             titleLbl.setHorizontalAlignment(SwingConstants.CENTER);
 
-            JLabel codeLbl = new JLabel("Ma phong: " + roomCode);
-            codeLbl.setFont(new Font("Consolas", Font.BOLD, 22));
+            JLabel codeLbl = new JLabel("Mã mời bạn bè của bạn là : " + roomCode);
+            codeLbl.setFont(new Font("Consolas", Font.BOLD, 18));
             codeLbl.setForeground(new Color(0x27AE60));
             codeLbl.setHorizontalAlignment(SwingConstants.CENTER);
 

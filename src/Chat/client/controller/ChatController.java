@@ -164,11 +164,11 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                 break;
                 
             case JOIN:
-                view.addSystemMessage("👋 " + message.getSender() + " đã vào phòng");
+                view.addSystemMessage("👋 " + message.getContent() + " đã vào phòng");
                 break;
                 
             case LEAVE:
-                view.addSystemMessage("👋 " + message.getSender() + " rời phòng");
+                view.addSystemMessage("👋 " + message.getContent() + " đã rời phòng");
                 break;
                 
             case USER_LIST:
