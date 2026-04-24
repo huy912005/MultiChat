@@ -469,9 +469,9 @@ public class ChatFrame extends JFrame {
     }
 
     private JButton createEmojiButton() {
-        JButton btn = new JButton(":)");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setPreferredSize(new Dimension(42, 40));
+        JButton btn = new JButton("\uD83D\uDE04"); // 😄
+        btn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
+        btn.setPreferredSize(new Dimension(44, 40));
         btn.setBorder(BorderFactory.createLineBorder(new Color(0xDADDE1)));
         btn.setBackground(Color.WHITE);
         btn.setForeground(new Color(0x666666));
@@ -482,12 +482,28 @@ public class ChatFrame extends JFrame {
     }
 
     private void showEmojiPopup(Component anchor) {
-        // Dung ky tu ASCII/Unicode tuong thich voi Swing tren Windows
+        // Real Unicode emoji - su dung Segoe UI Emoji font tren Windows
         final String[] emojis = {
-                ":)",  ":D",  ":P",  ":(" ,  ";)",
-                "<3",  "(y)", "ok" , "hi" ,  "xin chao",
-                "ha ha", "hehe", "wow", ":((", ":*",
-                "^_^", "-_-", "(ok)", "(no)", "..."
+            "\uD83D\uDE04", // 😄 cuoi to
+            "\uD83D\uDE02", // 😂 cuoi chay nuoc mat
+            "\uD83E\uDD23", // 🤣 lan lon cuoi
+            "\uD83D\uDE0A", // 😊 cuoi nhe
+            "\uD83D\uDE0D", // 😍 yeu qua
+            "\uD83D\uDE18", // 😘 hon gio
+            "\uD83D\uDE0E", // 😎 ngau
+            "\uD83E\uDD17", // 🤗 om
+            "\uD83D\uDE22", // 😢 khoc
+            "\uD83D\uDE21", // 😡 tuc gian
+            "\uD83D\uDC4D", // 👍 like
+            "\uD83D\uDC4E", // 👎 dislike
+            "\u2764\uFE0F", // ❤️ tim do
+            "\uD83D\uDC9C", // 💜 tim tim
+            "\uD83D\uDC95", // 💕 hai tim
+            "\uD83D\uDE4F", // 🙏 cam on / van xin
+            "\uD83D\uDD25", // 🔥 fire
+            "\uD83C\uDF89", // 🎉 bong bay
+            "\uD83D\uDC4F", // 👏 vo tay
+            "\u2705"        // ✅ check
         };
 
         JPopupMenu popup = new JPopupMenu();
@@ -495,28 +511,33 @@ public class ChatFrame extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         panel.setBackground(Color.WHITE);
 
+        Font emojiFont = new Font("Segoe UI Emoji", Font.PLAIN, 22);
         for (String emoji : emojis) {
             JButton emojiItem = new JButton(emoji);
-            emojiItem.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-            emojiItem.setMargin(new Insets(3, 3, 3, 3));
+            emojiItem.setFont(emojiFont);
+            emojiItem.setMargin(new Insets(2, 2, 2, 2));
             emojiItem.setFocusPainted(false);
-            emojiItem.setBackground(new Color(0xF0F2F5));
-            emojiItem.setBorder(BorderFactory.createLineBorder(new Color(0xDDDDDD)));
+            emojiItem.setBackground(new Color(0xF7F8FA));
+            emojiItem.setBorder(BorderFactory.createLineBorder(new Color(0xE4E6EB)));
             emojiItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            emojiItem.addMouseListener(new MouseAdapter() {
+                @Override public void mouseEntered(MouseEvent e) { emojiItem.setBackground(new Color(0xDCEEFE)); }
+                @Override public void mouseExited(MouseEvent e)  { emojiItem.setBackground(new Color(0xF7F8FA)); }
+            });
             emojiItem.addActionListener(e -> {
                 int pos = inputField.getCaretPosition();
                 String old = inputField.getText();
                 String next = old.substring(0, pos) + emoji + old.substring(pos);
                 inputField.setText(next);
                 inputField.requestFocus();
-                inputField.setCaretPosition(pos + emoji.length());
+                inputField.setCaretPosition(Math.min(pos + emoji.length(), next.length()));
                 popup.setVisible(false);
             });
             panel.add(emojiItem);
         }
 
         popup.add(panel);
-        popup.show(anchor, 0, -180);
+        popup.show(anchor, 0, -(panel.getPreferredSize().height + 20));
     }
 
     private JButton createSendButton() {
@@ -814,6 +835,63 @@ public class ChatFrame extends JFrame {
         });
     }
 
+    /**
+     * Hien thi thong bao ma phong noi bat (sau khi tao phong thanh cong).
+     * Ma phong duoc hien thi trong bang xanh la noi bat de nguoi tao de copy / chia se.
+     */
+    public void addRoomCodeMessage(String roomCode) {
+        SwingUtilities.invokeLater(() -> {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            row.setOpaque(false);
+            row.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+
+            // Card xanh la noi bat
+            JPanel card = new JPanel() {
+                @Override protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    // Vien ngoai xanh la
+                    g2.setColor(new Color(0x27AE60));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                    // Nen xanh la nhat
+                    g2.setColor(new Color(0xE8F8F0));
+                    g2.fillRoundRect(2, 2, getWidth()-4, getHeight()-4, 12, 12);
+                    g2.dispose();
+                    super.paintComponent(g);
+                }
+            };
+            card.setLayout(new java.awt.GridLayout(3, 1, 0, 4));
+            card.setOpaque(false);
+            card.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
+
+            JLabel titleLbl = new JLabel("\uD83C\uDF89 Phong da duoc tao thanh cong!");
+            titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            titleLbl.setForeground(new Color(0x1E8449));
+            titleLbl.setHorizontalAlignment(SwingConstants.CENTER);
+
+            JLabel codeLbl = new JLabel("Ma phong: " + roomCode);
+            codeLbl.setFont(new Font("Consolas", Font.BOLD, 22));
+            codeLbl.setForeground(new Color(0x27AE60));
+            codeLbl.setHorizontalAlignment(SwingConstants.CENTER);
+
+            JLabel hintLbl = new JLabel("Chia se ma nay de ban be co the tim va vao phong cua ban.");
+            hintLbl.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+            hintLbl.setForeground(new Color(0x5D6D7E));
+            hintLbl.setHorizontalAlignment(SwingConstants.CENTER);
+
+            card.add(titleLbl);
+            card.add(codeLbl);
+            card.add(hintLbl);
+
+            row.add(card);
+            chatPanel.add(row);
+            chatPanel.add(Box.createVerticalStrut(8));
+            chatPanel.revalidate();
+            scrollToBottom();
+        });
+    }
+
+
     // ─────────────────────────────────────────────────────────────
     // CẬP NHẬT SIDEBAR - Danh sách người dùng
     // ─────────────────────────────────────────────────────────────
@@ -955,8 +1033,16 @@ public class ChatFrame extends JFrame {
 
     /**
      * Hien thi dialog dang nhap / dang ky chuyen nghiep
+     * - Dang nhap: theme xanh duong
+     * - Dang ky: theme xanh la
      */
     public AuthRequest showLoginDialog() {
+        // Theme mau cho tung mode
+        final Color COLOR_LOGIN_ACCENT  = new Color(0x0084FF); // Xanh duong
+        final Color COLOR_REG_ACCENT    = new Color(0x27AE60); // Xanh la
+        final Color COLOR_REG_HOVER     = new Color(0x1E8449); // Xanh la dam khi hover
+        final Color COLOR_REG_PRESSED   = new Color(0x196F3D);
+
         final boolean[] registerMode = {false};
         final AuthRequest[] result    = {null};
 
@@ -983,9 +1069,9 @@ public class ChatFrame extends JFrame {
             BorderFactory.createEmptyBorder(0, 0, 0, 0)
         ));
 
-        // ── Header xanh ──
+        // ── Header xanh (doi mau khi chuyen mode) ──
         JPanel headerPanel = new JPanel(new GridBagLayout());
-        headerPanel.setBackground(COLOR_ACCENT);
+        headerPanel.setBackground(COLOR_LOGIN_ACCENT);
         headerPanel.setPreferredSize(new Dimension(320, 70));
 
         JLabel appTitle = new JLabel("Chat App");
@@ -1056,14 +1142,18 @@ public class ChatFrame extends JFrame {
         gbc.insets = new Insets(0, 0, 24, 0);
         body.add(passFld, gbc);
 
-        // Nut submit
+        // Nut submit (mau thay doi theo mode)
+        final Color[] btnColorHolder = { COLOR_LOGIN_ACCENT }; // dung array de lambda co the ghi
         JButton submitBtn = new JButton("DANG NHAP") {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                Color bg = getModel().isPressed()  ? new Color(0x0050B3)
-                         : getModel().isRollover() ? new Color(0x0066CC)
-                         : COLOR_ACCENT;
+                Color base = btnColorHolder[0];
+                Color hov  = registerMode[0] ? COLOR_REG_HOVER   : new Color(0x0066CC);
+                Color prs  = registerMode[0] ? COLOR_REG_PRESSED : new Color(0x0050B3);
+                Color bg = getModel().isPressed()  ? prs
+                         : getModel().isRollover() ? hov
+                         : base;
                 g2.setColor(bg);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
                 g2.dispose();
@@ -1100,18 +1190,37 @@ public class ChatFrame extends JFrame {
         gbc.insets = new Insets(0, 0, 0, 0);
         body.add(toggleLbl, gbc);
 
-        // ── Toggle logic ──
+        // ── Toggle logic (thay doi mau theo mode) ──
         toggleLbl.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 registerMode[0] = !registerMode[0];
                 if (registerMode[0]) {
+                    // --- Che do DANG KY: xanh la ---
+                    btnColorHolder[0] = COLOR_REG_ACCENT;
+                    headerPanel.setBackground(COLOR_REG_ACCENT);
+                    root.setBackground(new Color(0xE8F8F5));
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(COLOR_REG_ACCENT, 1),
+                        BorderFactory.createEmptyBorder(0, 0, 0, 0)));
                     modeLbl.setText("Dang Ky Tai Khoan");
+                    modeLbl.setForeground(COLOR_REG_ACCENT);
                     submitBtn.setText("TAO TAI KHOAN");
+                    submitBtn.repaint();
                     toggleLbl.setText("<html><div style='text-align:center'>Da co tai khoan? " +
-                        "<span style='color:#0084FF'><u>Dang nhap</u></span></div></html>");
+                        "<span style='color:#27AE60'><u>Dang nhap</u></span></div></html>");
+                    // border focus xanh la
                 } else {
+                    // --- Che do DANG NHAP: xanh duong ---
+                    btnColorHolder[0] = COLOR_LOGIN_ACCENT;
+                    headerPanel.setBackground(COLOR_LOGIN_ACCENT);
+                    root.setBackground(new Color(0xF0F2F5));
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(0xDDDEE0), 1),
+                        BorderFactory.createEmptyBorder(0, 0, 0, 0)));
                     modeLbl.setText("Dang Nhap");
+                    modeLbl.setForeground(new Color(0x1C1E21));
                     submitBtn.setText("DANG NHAP");
+                    submitBtn.repaint();
                     toggleLbl.setText("<html><div style='text-align:center'>Chua co tai khoan? " +
                         "<span style='color:#0084FF'><u>Dang ky ngay</u></span></div></html>");
                 }
@@ -1135,11 +1244,12 @@ public class ChatFrame extends JFrame {
         passFld.addActionListener(doSubmit);
         userFld.addActionListener(ev -> passFld.requestFocus());
 
-        // ── Hover: vien xanh khi focus vao input ──
+        // ── Hover: vien mau theo mode khi focus vao input ──
         java.awt.event.FocusAdapter inputFocus = new java.awt.event.FocusAdapter() {
             @Override public void focusGained(java.awt.event.FocusEvent e) {
+                Color focusColor = registerMode[0] ? COLOR_REG_ACCENT : COLOR_LOGIN_ACCENT;
                 ((JComponent) e.getSource()).setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(COLOR_ACCENT, 2),
+                    BorderFactory.createLineBorder(focusColor, 2),
                     BorderFactory.createEmptyBorder(7, 11, 7, 11)));
             }
             @Override public void focusLost(java.awt.event.FocusEvent e) {

@@ -186,7 +186,13 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                     view.showError(message.getContent());
                     view.disableChatUI();
                 }
-                view.addSystemMessage(message.getContent());
+                // Phat hien thong bao ma phong de hien thi noi bat
+                if (message.getContent().startsWith("ROOM_CODE:")) {
+                    String roomCode = message.getContent().substring("ROOM_CODE:".length()).trim();
+                    view.addRoomCodeMessage(roomCode);
+                } else {
+                    view.addSystemMessage(message.getContent());
+                }
                 break;
 
             case JOIN_ROOM:
