@@ -20,6 +20,7 @@ public class ClientHandler implements Runnable {
     private String username;
     private int currentRoomId = -1; // -1 nghĩa là chưa ở phòng nào
     private Map<String, ClientHandler> clients;
+    private java.util.Set<Integer> notifiedRooms = new java.util.HashSet<>();
 
     public ClientHandler(Socket socket, ServerLogger gui, Map<String, ClientHandler> clients) {
         this.socket = socket;
@@ -376,15 +377,18 @@ public class ClientHandler implements Runnable {
 
         broadcastUserList(roomId);
         
-        // Chi thong bao cho NHUNG NGUOI KHAC trong phong
-        Message joinNotification = new Message("He thong", username, Message.Type.JOIN);
-        List<ClientHandler> members = Server.getRoomGroups().get(roomId);
-        if (members != null) {
-            for (ClientHandler ch : members) {
-                if (ch != this) {
-                    ch.sendMessage(joinNotification);
+        // Chi thong bao 1 LAN DUY NHAT khi user lan dau tien vao phong nay trong phien lam viec
+        if (!notifiedRooms.contains(roomId)) {
+            Message joinNotification = new Message("He thong", username, Message.Type.JOIN);
+            List<ClientHandler> members = Server.getRoomGroups().get(roomId);
+            if (members != null) {
+                for (ClientHandler ch : members) {
+                    if (ch != this) {
+                        ch.sendMessage(joinNotification);
+                    }
                 }
             }
+            notifiedRooms.add(roomId); // Danh dau da thong bao
         }
 
         broadcastRoomListToAll();
