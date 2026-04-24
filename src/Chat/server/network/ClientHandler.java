@@ -438,6 +438,7 @@ public class ClientHandler implements Runnable {
             ps.setString(4, roomCode);
             ps.executeUpdate();
             gui.logSystem("User '" + username + "' da tao phong: " + roomName + " (Ma: " + roomCode + ")");
+            Server.broadcastToAdmins(new Message("ROOM_LOG", "User '" + username + "' da tao phong: " + roomName, Message.Type.ADMIN_LOG));
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int newId = rs.getInt(1);
@@ -539,6 +540,7 @@ public class ClientHandler implements Runnable {
                 ps.setInt(1, roomId); ps.executeUpdate();
             }
             gui.logSystem("Da xoa phong ID=" + roomId + " boi " + username);
+            Server.broadcastToAdmins(new Message("ROOM_LOG", "Da xoa phong ID=" + roomId + " boi " + username, Message.Type.ADMIN_LOG));
             broadcastRoomListToAll();
         } catch (Exception e) {
             gui.logError("DB Error (deleteRoom): " + e.getMessage());
