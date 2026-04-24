@@ -353,10 +353,8 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        // Thông báo user LEAVE khỏi phòng cũ cho những user khác
+        // Khong gui thong bao LEAVE khi chuyen phong (chi gui khi ngat ket noi han)
         if (currentRoomId > 0) {
-            Message leaveNotification = new Message("Hệ thống", username, Message.Type.LEAVE);
-            broadcastToRoom(currentRoomId, leaveNotification);
             List<ClientHandler> oldMembers = Server.getRoomGroups().get(currentRoomId);
             if (oldMembers != null) {
                 synchronized (oldMembers) {
@@ -378,8 +376,18 @@ public class ClientHandler implements Runnable {
         loadRoomHistory(roomId);
 
         broadcastUserList(roomId);
-        Message joinNotification = new Message("Hệ thống", username, Message.Type.JOIN);
-        broadcastToRoom(roomId, joinNotification);
+        
+        // Chi thong bao cho NHUNG NGUOI KHAC trong phong
+        Message joinNotification = new Message("He thong", username, Message.Type.JOIN);
+        List<ClientHandler> members = Server.getRoomGroups().get(roomId);
+        if (members != null) {
+            for (ClientHandler ch : members) {
+                if (ch != this) {
+                    ch.sendMessage(joinNotification);
+                }
+            }
+        }
+
         broadcastRoomListToAll();
         gui.updateOnlineUserCount();
         gui.logSystem(username + " đã vào phòng " + roomId + " (" + roomName + ")");
@@ -544,7 +552,7 @@ public class ClientHandler implements Runnable {
                 String info = rs.getInt(1) + ":" + rs.getString(2) + ":" + rs.getInt(3) + ":" + rs.getInt(4);
                 sendMessage(new Message("System", info, Message.Type.ROOM_LIST));
             } else {
-                sendMessage(new Message("System", "Khong tim thay phong voi ma: " + code, Message.Type.SYSTEM));
+                sendMessage(new Message("System", "NOT_FOUND:Khong tim thay phong voi ma: " + code, Message.Type.SYSTEM));
             }
         } catch (Exception e) {
             // DB chua co cot roomCode - tra ve danh sach phong binh thuong

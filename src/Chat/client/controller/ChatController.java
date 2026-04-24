@@ -182,16 +182,18 @@ public class ChatController implements ChatFrame.ChatFrameListener, ClientSocket
                 break;
                 
             case SYSTEM:
-                if (message.getContent().contains("bị kick")) {
-                    view.showError(message.getContent());
+                String content = message.getContent();
+                if (content.contains("bị kick")) {
+                    view.showError(content);
                     view.disableChatUI();
-                }
-                // Phat hien thong bao ma phong de hien thi noi bat
-                if (message.getContent().startsWith("ROOM_CODE:")) {
-                    String roomCode = message.getContent().substring("ROOM_CODE:".length()).trim();
+                } else if (content.startsWith("NOT_FOUND:")) {
+                    // Hiển thị thông báo lỗi tìm phòng qua Messagebox
+                    view.showError(content.substring("NOT_FOUND:".length()));
+                } else if (content.startsWith("ROOM_CODE:")) {
+                    String roomCode = content.substring("ROOM_CODE:".length()).trim();
                     view.addRoomCodeMessage(roomCode);
                 } else {
-                    view.addSystemMessage(message.getContent());
+                    view.addSystemMessage(content);
                 }
                 break;
 

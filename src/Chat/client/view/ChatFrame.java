@@ -823,7 +823,7 @@ public class ChatFrame extends JFrame {
                     super.paintComponent(g);
                 }
             };
-            label.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+            label.setFont(new Font("Dialog", Font.ITALIC, 12)); // Dung Dialog font de ho tro emoji tot hon
             label.setForeground(COLOR_SYSTEM_MSG);
             label.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
             label.setOpaque(false);
