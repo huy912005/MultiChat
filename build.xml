@@ -38,24 +38,47 @@
             <jvmarg value="-Dfile.encoding=UTF-8"/>
         </java>
     </target>
-       <!-- ══════════════════════════════════════════════════════════
-         TARGET: package-all (Đóng gói Client)
+    <!-- ══════════════════════════════════════════════════════════
+         TARGET: package-all (Đóng gói Client cho người dùng)
     ══════════════════════════════════════════════════════════ -->
-    <target name="package-all" depends="jar" description="Tạo file JAR cho Client">
+    <target name="package-all" depends="jar" description="Tạo file JAR và BAT cho người dùng">
         <property name="store.jar.name" value="AppChat"/>
         <property name="store.dir" value="AppChat"/>
         <property name="store.jar" value="${store.dir}/${store.jar.name}.jar"/>
         
-        <echo message="Đang đóng gói Client..."/>
+        <echo message="Đang xóa thư mục cũ..."/>
+        <delete dir="${store.dir}"/>
         <mkdir dir="${store.dir}"/>
+        
+        <echo message="Đang tạo Fat JAR (Gộp toàn bộ thư viện)..."/>
         <jar destfile="${store.jar}" filesetmanifest="merge">
             <manifest>
                 <attribute name="Main-Class" value="Chat.client.Main"/>
+                <attribute name="Implementation-Title" value="Chat App"/>
+                <attribute name="Implementation-Version" value="1.0"/>
             </manifest>
+            <!-- Lấy code của dự án -->
             <zipfileset src="${dist.jar}"/>
-            <zipgroupfileset dir="lib" includes="*.jar"/>
+            <!-- Gộp thư viện và loại bỏ file chữ ký (tránh lỗi bảo mật khi chạy Fat JAR) -->
+            <zipgroupfileset dir="lib" includes="*.jar">
+                <exclude name="META-INF/*.SF"/>
+                <exclude name="META-INF/*.DSA"/>
+                <exclude name="META-INF/*.RSA"/>
+            </zipgroupfileset>
         </jar>
-        <echo message="Xong! Client tại: ${store.jar}"/>
+        
+        <echo message="Đang tạo file chạy nhanh .bat..."/>
+        <echo file="${store.dir}/CHAY_APP.bat">@echo off
+title Chat App - Client
+java -Dfile.encoding=UTF-8 -jar AppChat.jar
+pause
+</echo>
+
+        <echo message="===================================================="/>
+        <echo message=" ĐÓNG GÓI HOÀN TẤT!"/>
+        <echo message=" Thư mục: ${store.dir}"/>
+        <echo message=" File chạy: CHAY_APP.bat"/>
+        <echo message="===================================================="/>
     </target>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -63,19 +86,23 @@
     ══════════════════════════════════════════════════════════ -->
     <target name="package-server" depends="jar" description="Tạo file JAR cho Server">
         <property name="server.jar.name" value="AppServer"/>
-        <property name="store.dir" value="AppChat"/>
-        <property name="server.jar" value="${store.dir}/${server.jar.name}.jar"/>
+        <property name="server.dir" value="AppServer"/>
+        <property name="server.jar" value="${server.dir}/${server.jar.name}.jar"/>
         
         <echo message="Đang đóng gói Server..."/>
-        <mkdir dir="${store.dir}"/>
+        <delete dir="${server.dir}"/>
+        <mkdir dir="${server.dir}"/>
         <jar destfile="${server.jar}" filesetmanifest="merge">
             <manifest>
                 <attribute name="Main-Class" value="Chat.server.Main"/>
             </manifest>
             <zipfileset src="${dist.jar}"/>
-            <zipgroupfileset dir="lib" includes="*.jar"/>
+            <zipgroupfileset dir="lib" includes="*.jar">
+                <exclude name="META-INF/*.SF"/>
+                <exclude name="META-INF/*.DSA"/>
+                <exclude name="META-INF/*.RSA"/>
+            </zipgroupfileset>
         </jar>
         <echo message="Xong! Server tại: ${server.jar}"/>
     </target>
-
 </project>
