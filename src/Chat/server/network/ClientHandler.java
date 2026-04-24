@@ -673,7 +673,7 @@ public class ClientHandler implements Runnable {
                         ch.sendMessage(listMsg);
                     }
                 } catch (Exception e) {
-                    gui.logError("Lỗi gửi danh sách user cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
+                    gui.logError("Loi gui danh sach user cho " + (ch != null ? ch.getUsername() : "client") + ": " + e.getMessage());
                 }
             }
             gui.updateOnlineUserCount();
@@ -683,23 +683,31 @@ public class ClientHandler implements Runnable {
     public void sendMessage(Message msg) {
         try {
             out.println(msg.toNetworkString());
-            out.flush();  // Đảm bảo tin nhắn được gửi ngay lập tức
+            out.flush();
         } catch (Exception e) {
-            gui.logError("Lỗi gửi tin nhắn cho " + username + ": " + e.getMessage());
+            gui.logError("Loi gui tin nhan cho " + username + ": " + e.getMessage());
         }
     }
 
     public String getUsername() { return username; }
 
-    /** Gửi danh sách tất cả phòng cho client này */
+    /**
+     * Gui danh sach phong cho client nay:
+     *  - Phong CONG KHAI: Admin tao (maUser IS NULL) -> hien voi tat ca
+     *  - Phong RIENG TU: Client tao (maUser IS NOT NULL) -> chi hien voi:
+     *      + Chinh nguoi tao phong do
+     *      + Nguoi da tung join phong do qua ma
+     */
     private void sendRoomListToClient() {
-        // Chỉ gửi phòng công khai (không có mã) HOẶC phòng riêng mà người dùng này tạo ra HOẶC phòng riêng mà người dùng này đã tham gia
-        String sql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room " +
-                     "WHERE roomCode IS NULL OR roomCode = '' " +
-                     "   OR maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1) " +
-                     "   OR maRoom IN (SELECT maRoom FROM UserRoom WHERE maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1)) " +
-                     "ORDER BY maRoom";
         StringBuilder sb = new StringBuilder();
+        // SQL chinh: dung ca maUser va roomCode cot
+        String sql =
+            "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room " +
+            "WHERE (maUser IS NULL) " +
+            "   OR (maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1)) " +
+            "   OR (maRoom IN (SELECT maRoom FROM UserRoom " +
+            "                  WHERE maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1))) " +
+            "ORDER BY maRoom";
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
@@ -711,24 +719,35 @@ public class ClientHandler implements Runnable {
                       .append(rs.getInt(3)).append(":").append(rs.getInt(4));
                 }
             }
+            gui.logSystem("[RoomList] Gui cho " + username + ": " + sb.toString());
         } catch (Exception e) {
-            // FALLBACK: Neu chua chay migrate_db.sql tren server (thieu cot roomCode)
-            gui.logSystem("DB thieu cot roomCode, dung fallback cho room list.");
-            String fallbackSql = "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room ORDER BY maRoom";
+            // FALLBACK: neu DB chua co cot maUser trong Room, dung roomCode
+            gui.logSystem("[DEBUG] sendRoomList primary failed, fallback: " + e.getMessage());
+            String fallbackSql =
+                "SELECT maRoom, tenRoom, soLuongHienTai, COALESCE(gioiHan, 999) FROM Room " +
+                "WHERE (roomCode IS NULL OR roomCode = '') " +
+                "   OR (maRoom IN (SELECT maRoom FROM UserRoom " +
+                "                  WHERE maUser = (SELECT maUser FROM User WHERE tenUser = ? LIMIT 1))) " +
+                "ORDER BY maRoom";
             try (Connection conn = DBContext.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(fallbackSql);
-                 ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    if (sb.length() > 0) sb.append(",");
-                    sb.append(rs.getInt(1)).append(":").append(rs.getString(2)).append(":")
-                      .append(rs.getInt(3)).append(":").append(rs.getInt(4));
+                 PreparedStatement ps = conn.prepareStatement(fallbackSql)) {
+                ps.setString(1, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        if (sb.length() > 0) sb.append(",");
+                        sb.append(rs.getInt(1)).append(":").append(rs.getString(2)).append(":")
+                          .append(rs.getInt(3)).append(":").append(rs.getInt(4));
+                    }
                 }
             } catch (Exception ex) {
                 gui.logError("DB Error (sendRoomList Fallback): " + ex.getMessage());
+                // Last resort: tra ve phong mac dinh
+                sb.setLength(0);
+                sb.append("1:Sanh Chung:0:999");
             }
         }
         if (sb.length() > 0) {
-            sendMessage(new Message("Hệ thống", sb.toString(), Message.Type.ROOM_LIST));
+            sendMessage(new Message("He thong", sb.toString(), Message.Type.ROOM_LIST));
         }
     }
 

@@ -498,7 +498,7 @@ public class ServerGUI extends JFrame implements ServerLogger {
         }
     }
 
-    /** Lấy danh sách phòng từ DB */
+    /** Lay danh sach phong tu DB, giu nguyen selection neu co */
     public void refreshRoomTable() {
         if (roomTableModel == null) return;
         new Thread(() -> {
@@ -511,10 +511,27 @@ public class ServerGUI extends JFrame implements ServerLogger {
                     rooms.add(new Object[]{rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getInt(4)});
                 }
             } catch (Exception e) {}
-            
+
             SwingUtilities.invokeLater(() -> {
+                // Luu lai ID phong dang chon de khoi phuc sau khi refresh
+                int selectedRoomId = -1;
+                int selRow = roomTable.getSelectedRow();
+                if (selRow >= 0) {
+                    try { selectedRoomId = (int) roomTableModel.getValueAt(selRow, 0); } catch (Exception ignored) {}
+                }
+
                 roomTableModel.setRowCount(0);
-                for (Object[] row : rooms) roomTableModel.addRow(row);
+                int restoreRow = -1;
+                for (int i = 0; i < rooms.size(); i++) {
+                    roomTableModel.addRow(rooms.get(i));
+                    if (selectedRoomId > 0 && (int) rooms.get(i)[0] == selectedRoomId) {
+                        restoreRow = i;
+                    }
+                }
+                // Khoi phuc selection
+                if (restoreRow >= 0) {
+                    roomTable.setRowSelectionInterval(restoreRow, restoreRow);
+                }
             });
         }).start();
     }
