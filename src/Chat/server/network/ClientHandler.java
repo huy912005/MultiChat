@@ -436,24 +436,8 @@ public class ClientHandler implements Runnable {
                 sendMessage(new Message("System", "ROOM_CODE:" + roomCode, Message.Type.SYSTEM));
             }
         } catch (Exception e) {
-            // Thu lai khong co cot roomCode/maUser neu DB cu
-            String sql2 = "INSERT INTO Room (tenRoom, gioiHan) VALUES (?, ?)";
-            try (Connection conn2 = DBContext.getConnection();
-                 PreparedStatement ps2 = conn2.prepareStatement(sql2, Statement.RETURN_GENERATED_KEYS)) {
-                ps2.setString(1, roomName);
-                ps2.setInt(2, limit);
-                ps2.executeUpdate();
-                ResultSet rs2 = ps2.getGeneratedKeys();
-                if (rs2.next()) {
-                    int newId = rs2.getInt(1);
-                    joinRoom(newId);
-                    broadcastRoomListToAll();
-                    sendMessage(new Message("System", "Phong nay la phong rieng. Chi nhung nguoi co ma moi vao duoc.", Message.Type.SYSTEM));
-                }
-            } catch (Exception e2) {
-                gui.logError("DB Error (createRoom): " + e2.getMessage());
-                sendMessage(new Message("System", "Loi tao phong: " + e2.getMessage(), Message.Type.SYSTEM));
-            }
+            gui.logError("DB Error (createRoom): Ban chua chay lenh them cot maUser va roomCode vao bang Room tren Cloud. Loi chi tiet: " + e.getMessage());
+            sendMessage(new Message("System", "Loi server: Database thieu cot maUser/roomCode. Yeu cau Admin chay migrate_db.sql tren Cloud!", Message.Type.SYSTEM));
         }
     }
 
@@ -585,9 +569,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /** Tao ma phong 5 ky tu duy nhat (A-Z0-9) */
+    /** Tao ma phong 5 so duy nhat (0-9) */
     private String generateRoomCode() {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        String chars = "0123456789";
         java.util.Random rnd = new java.util.Random();
         String checkSql = "SELECT 1 FROM Room WHERE roomCode = ?";
         for (int attempt = 0; attempt < 100; attempt++) {
