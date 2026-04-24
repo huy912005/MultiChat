@@ -39,9 +39,9 @@
         </java>
     </target>
     <!-- ══════════════════════════════════════════════════════════
-         TARGET: package-all (Đóng gói Toàn bộ: Client & Admin Server)
+         TARGET: package-all (Đóng gói AppChat & AppServer)
     ══════════════════════════════════════════════════════════ -->
-    <target name="package-all" depends="jar" description="Tạo bộ cài đầy đủ cho Client và Admin">
+    <target name="package-all" depends="jar" description="Tạo file JAR cho Client và Admin">
         <property name="store.dir" value="AppChat"/>
         
         <echo message="Đang dọn dẹp thư mục AppChat..."/>
@@ -49,7 +49,7 @@
         <mkdir dir="${store.dir}"/>
         
         <!-- 1. Đóng gói AppChat.jar (Client) -->
-        <echo message="Đang tạo AppChat.jar (Client)..."/>
+        <echo message="Đang tạo AppChat.jar..."/>
         <jar destfile="${store.dir}/AppChat.jar" filesetmanifest="merge">
             <manifest>
                 <attribute name="Main-Class" value="Chat.client.Main"/>
@@ -61,7 +61,7 @@
         </jar>
 
         <!-- 2. Đóng gói AppServer.jar (Admin GUI) -->
-        <echo message="Đang tạo AppServer.jar (Admin Server)..."/>
+        <echo message="Đang tạo AppServer.jar..."/>
         <jar destfile="${store.dir}/AppServer.jar" filesetmanifest="merge">
             <manifest>
                 <attribute name="Main-Class" value="Chat.server.Main"/>
@@ -71,26 +71,12 @@
                 <exclude name="META-INF/*.SF"/><exclude name="META-INF/*.DSA"/><exclude name="META-INF/*.RSA"/>
             </zipgroupfileset>
         </jar>
-        
-        <echo message="Đang tạo các file .bat khởi động..."/>
-        <!-- File chạy cho Client -->
-        <echo file="${store.dir}/CHAY_APP_CLIENT.bat">@echo off
-title Chat App - Client
-java -Dfile.encoding=UTF-8 -jar AppChat.jar
-pause
-</echo>
-        <!-- File chạy cho Admin Server -->
-        <echo file="${store.dir}/CHAY_ADMIN_SERVER.bat">@echo off
-title Chat App - Admin Server
-java -Dfile.encoding=UTF-8 -jar AppServer.jar
-pause
-</echo>
 
         <echo message="===================================================="/>
         <echo message=" ĐÓNG GÓI HOÀN TẤT!"/>
         <echo message=" Thư mục: ${store.dir}"/>
-        <echo message=" - AppChat.jar (Client)"/>
-        <echo message=" - AppServer.jar (Admin Server)"/>
+        <echo message=" 1. AppChat.jar"/>
+        <echo message=" 2. AppServer.jar"/>
         <echo message="===================================================="/>
     </target>
 </project>
